@@ -788,3 +788,31 @@ body.ready .boot { opacity: 0; }
   height: 100%;
   pointer-events: none;
 }
+
+/* ---------- scene dock: a vertical column on desktop so 8+ scenes never reach the wheel ---------- */
+@media (min-width: 761px) {
+  .scene-dock {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .scene-name {
+    order: -1; /* label above the column */
+    padding-left: 6px;
+  }
+  .scenes {
+    flex-direction: column;
+    border-radius: 24px;
+  }
+  .scenes button:hover { transform: scale(1.15); }
+}
+/* short desktop windows: tighter buttons so the column still fits */
+@media (min-width: 761px) and (max-height: 640px) {
+  .scenes button { width: 32px; height: 32px; font-size: 17px; }
+  .scenes { gap: 2px; padding: 3px; }
+}
+/* phones: one row of 8 that fits a 360px screen */
+@media (max-width: 760px) {
+  .scenes { gap: 2px; padding: 3px; }
+  .scenes button { width: 30px; height: 30px; font-size: 16px; }
+}

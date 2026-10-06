@@ -251,7 +251,7 @@ export class UI {
     if (w > 760) return { x: 380, y: 0 };
     // mobile: bottom sheet below, header strip above; y is the net upward shift
     const sheet = this.panel.classList.contains('collapsed') ? 64 : Math.round(h * 0.46) + 8;
-    const header = 110;
+    const header = 128; // logo + badges + scene dock
     return { x: 0, y: sheet - header, used: sheet + header };
   }
 
