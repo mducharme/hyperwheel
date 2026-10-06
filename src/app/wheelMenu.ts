@@ -87,8 +87,14 @@ export class WheelMenu {
           break;
         }
         case 'share': {
-          const { url, dropped } = shareLink(session.doc);
-          await navigator.clipboard.writeText(url);
+          const { url, dropped } = await shareLink(session.doc);
+          try {
+            await navigator.clipboard.writeText(url);
+          } catch {
+            // clipboard can be refused (no user gesture, Safari permissions): let them copy it by hand
+            prompt('Copy this share link:', url);
+            return;
+          }
           toast(dropped ? `Link copied — uploaded models/audio aren't included (${dropped}). Use Export for those.` : 'Share link copied!');
           break;
         }

@@ -30,8 +30,8 @@ import { starField } from '../../fx/nodes';
 import { Particles } from '../../fx/Particles';
 import { uSpeed, uWin } from '../../engine/globals';
 import { SCALES } from '../../audio/ChipSynth';
+import { meta, PALETTE } from './meta';
 
-const PALETTE = ['#8a7dff', '#ffb347', '#3d2a8a', '#ff6b6b', '#64ffda', '#e0d4ff'];
 
 const inst = (data: Float32Array, size: number, type: string): any =>
   instancedBufferAttribute(new THREE.InstancedBufferAttribute(data, size), type);
@@ -250,11 +250,7 @@ interface CosmosScene extends ThemeScene {
 // ------------------------------------------------------------------ theme
 
 export const cosmos: Theme<CosmosScene> = {
-  id: 'cosmos',
-  name: 'Event Horizon',
-  emoji: '🪐',
-  tagline: 'Black holes, warp speed and zero-g',
-  ui: { accent: '#ffb347', accent2: '#8a7dff', accent3: '#64ffda' },
+  ...meta,
   wheel: {
     palette: PALETTE,
     font: '"Orbitron"',

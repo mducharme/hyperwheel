@@ -1,106 +1,70 @@
 {
   "synthwave": {
     "spin": [
-      {
-        "file": "spin-1.mp3",
-        "seconds": 30,
-        "prompt": "Driving retro synthwave instrumental at 118 BPM, pulsing arpeggiated analog bass, gated reverb drums, bright saw-wave lead hook, 1980s night-drive energy, builds tension, loop-friendly with no intro or ending, instrumental only"
-      },
-      {
-        "file": "spin-2.mp3",
-        "seconds": 30,
-        "prompt": "Upbeat outrun electro instrumental at 128 BPM, punchy drum machine, sparkling synth arpeggios, neon arcade game-show excitement, steady build, loop-friendly with no intro or fade, instrumental only"
-      },
-      {
-        "file": "spin-3.mp3",
-        "seconds": 30,
-        "prompt": "Darkwave synth instrumental at 110 BPM, heavy sidechained bass, ticking hi-hats like a countdown, suspenseful minor-key lead, cinematic retro-futuristic drama, loop-friendly, instrumental only"
-      }
+      {"file": "spin-1.mp3", "seconds": 20, "prompt": "Driving retro synthwave at 118 BPM, pulsing arpeggiated analog bass, gated-reverb drums, bright saw-wave lead hook, 1980s night-drive tension, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-2.mp3", "seconds": 20, "prompt": "Upbeat outrun electro at 128 BPM, punchy drum machine, sparkling synth arpeggios, neon arcade game-show excitement, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-3.mp3", "seconds": 20, "prompt": "Darkwave synth at 110 BPM, heavy sidechained bass, ticking hi-hats like a countdown, suspenseful minor-key lead, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-4.mp3", "seconds": 20, "prompt": "Funky retro synth-pop at 115 BPM, slap-style synth bass, bright stabbing chords, cowbell and handclaps, glittery roller-disco fun, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-5.mp3", "seconds": 20, "prompt": "Fast chiptune-meets-synthwave at 140 BPM, 8-bit square-wave melody over big analog pads and four-on-the-floor kick, high-score chase energy, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-6.mp3", "seconds": 20, "prompt": "Midtempo dreamy retro-synth groove at 100 BPM, chorus-drenched electric piano, warm tape-saturated pads, snappy drum machine, sunset suspense, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"}
     ],
     "win": [
-      {
-        "file": "win-1.mp3",
-        "seconds": 5,
-        "prompt": "Short triumphant synthwave victory sting, rising saw-lead fanfare into a big major chord with shimmering reverb, retro arcade winner jingle, instrumental only"
-      }
+      {"file": "win-1.mp3", "seconds": 5, "prompt": "Short triumphant synthwave victory sting, rising saw-lead fanfare into a big major chord with shimmering reverb, retro arcade winner jingle, instrumental only"},
+      {"file": "win-2.mp3", "seconds": 4, "prompt": "Short 8-bit arcade high-score jingle, fast ascending square-wave arpeggio ending on a bright chord with a laser zap, instrumental only"},
+      {"file": "win-3.mp3", "seconds": 5, "prompt": "Short dramatic synth brass hit and gated-reverb drum fill resolving to a huge glowing major chord, 1980s action-movie victory, instrumental only"},
+      {"file": "win-4.mp3", "seconds": 5, "prompt": "Short sparkling retro synth chime cascade with a punchy kick and cymbal swell, neon jackpot celebration, instrumental only"},
+      {"file": "win-5.mp3", "seconds": 5, "prompt": "Short punchy retro synthwave victory sting at 128 BPM, starts instantly with a driving four-on-the-floor kick and gated snare, a bright saw-wave lead plays a quick rising triumphant three-note phrase, big power-chord synth stab on the final beat, then a clean short major-chord hit and stop, energetic and celebratory, instrumental only"}
     ]
   },
   "candy": {
     "spin": [
-      {
-        "file": "spin-1.mp3",
-        "seconds": 30,
-        "prompt": "Bouncy playful bubblegum pop instrumental at 132 BPM, plucky marimba and glockenspiel melody, ukulele strums, handclaps, cartoon sweet-shop happiness, loop-friendly with no intro or ending, instrumental only"
-      },
-      {
-        "file": "spin-2.mp3",
-        "seconds": 30,
-        "prompt": "Silly kawaii chiptune pop instrumental at 140 BPM, squeaky square-wave lead, toy piano, boing sounds, sugary game-show excitement, loop-friendly, instrumental only"
-      },
-      {
-        "file": "spin-3.mp3",
-        "seconds": 30,
-        "prompt": "Whimsical carnival waltz-pop instrumental, calliope organ and pizzicato strings, cheeky bassoon, candy factory mischief, gradually speeding up feel, loop-friendly, instrumental only"
-      }
+      {"file": "spin-1.mp3", "seconds": 20, "prompt": "Bouncy bubblegum pop at 132 BPM, plucky marimba and glockenspiel melody, ukulele strums, handclaps, cartoon sweet-shop happiness, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-2.mp3", "seconds": 20, "prompt": "Silly kawaii chiptune pop at 140 BPM, squeaky square-wave lead, toy piano, boing sound effects, sugary game-show excitement, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-3.mp3", "seconds": 20, "prompt": "Whimsical carnival pop in a bouncy 6/8 feel, calliope organ, pizzicato strings, cheeky bassoon, candy-factory mischief, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-4.mp3", "seconds": 20, "prompt": "Cheerful ska-pop at 150 BPM, offbeat guitar skanks, bright trumpets and trombone, bouncy bass, sugar-rush party energy, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-5.mp3", "seconds": 20, "prompt": "Cute lo-fi pop at 95 BPM, music-box melody, soft kick and finger snaps, warm synth bass, cozy bakery daydream with a hint of suspense, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-6.mp3", "seconds": 20, "prompt": "Zany cartoon chase at 160 BPM, xylophone runs, slide whistles, tuba bass and frantic snare, candy-coated slapstick suspense, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"}
     ],
     "win": [
-      {
-        "file": "win-1.mp3",
-        "seconds": 5,
-        "prompt": "Short sugary victory jingle, glockenspiel and toy piano flourish, party horn, cheerful major chord ending with sparkle, instrumental only"
-      }
+      {"file": "win-1.mp3", "seconds": 5, "prompt": "Short sugary victory jingle, glockenspiel and toy piano flourish, party horn, cheerful major chord ending with sparkle, instrumental only"},
+      {"file": "win-2.mp3", "seconds": 4, "prompt": "Short cartoon ta-da sting, bright brass hit, xylophone run upward and a cheerful cymbal crash, instrumental only"},
+      {"file": "win-3.mp3", "seconds": 5, "prompt": "Short kawaii chiptune celebration jingle, bubbly square-wave arpeggio ending on a cute major chord with a pop, instrumental only"},
+      {"file": "win-4.mp3", "seconds": 5, "prompt": "Short carnival winner fanfare on calliope organ with tambourine and a bouncy finishing chord, instrumental only"},
+      {"file": "win-5.mp3", "seconds": 6, "prompt": "Short joyful ukulele and handclap victory riff building to a big singalong-style major chord, no vocals, instrumental only"}
     ]
   },
   "abyss": {
     "spin": [
-      {
-        "file": "spin-1.mp3",
-        "seconds": 30,
-        "prompt": "Mysterious underwater ambient-electronic instrumental at 100 BPM, bubbly filtered synth plucks, deep sub bass, muffled drums, shimmering kalimba melody, bioluminescent deep-sea suspense, loop-friendly, instrumental only"
-      },
-      {
-        "file": "spin-2.mp3",
-        "seconds": 30,
-        "prompt": "Playful aquatic adventure instrumental at 115 BPM, steel drums and marimba, squelchy synth bass, bubbling percussion, treasure-hunt excitement, loop-friendly with no intro or ending, instrumental only"
-      },
-      {
-        "file": "spin-3.mp3",
-        "seconds": 30,
-        "prompt": "Tense deep-ocean cinematic instrumental, low cello ostinato, sonar ping rhythm, swelling choir pads, slow-building suspense like something huge approaching, loop-friendly, instrumental only"
-      }
+      {"file": "spin-1.mp3", "seconds": 20, "prompt": "Mysterious underwater electronica at 100 BPM, bubbly filtered synth plucks, deep sub bass, muffled drums, shimmering kalimba, bioluminescent suspense, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-2.mp3", "seconds": 20, "prompt": "Playful aquatic adventure groove at 115 BPM, steel drums and marimba, squelchy synth bass, bubbling percussion, treasure-hunt excitement, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-3.mp3", "seconds": 20, "prompt": "Tense deep-ocean cinematic pulse, low cello ostinato, sonar-ping rhythm, swelling choir pads, something huge approaching, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-4.mp3", "seconds": 20, "prompt": "Groovy surf-rock at 140 BPM, reverb-drenched twangy guitar, driving drums, upright bass, wave-riding excitement, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-5.mp3", "seconds": 20, "prompt": "Liquid drum-and-bass at 170 BPM, rolling breakbeats, warm sub bass, glassy bell pads, gliding through a coral reef, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-6.mp3", "seconds": 20, "prompt": "Quirky sea-shanty-inspired stomp at 120 BPM, accordion and fiddle melody, stomping percussion, plucked double bass, pirate treasure suspense, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"}
     ],
     "win": [
-      {
-        "file": "win-1.mp3",
-        "seconds": 5,
-        "prompt": "Short magical underwater victory sting, harp glissando and bubbling chimes resolving to a warm major chord, treasure discovered, instrumental only"
-      }
+      {"file": "win-1.mp3", "seconds": 5, "prompt": "Short magical underwater victory sting, harp glissando and bubbling chimes resolving to a warm major chord, treasure discovered, instrumental only"},
+      {"file": "win-2.mp3", "seconds": 4, "prompt": "Short steel-drum celebration flourish ending on a sunny major chord with a splash cymbal, instrumental only"},
+      {"file": "win-3.mp3", "seconds": 5, "prompt": "Short epic orchestral sea victory sting, swelling strings and horns rising like a breaching whale, big major chord ending, instrumental only"},
+      {"file": "win-4.mp3", "seconds": 5, "prompt": "Short upbeat underwater party victory sting at 132 BPM, punchy kick and handclaps from the first beat, sparkling bubble-pop synth arpeggio racing upward, bright brass stab, glowing bioluminescent shimmer on top, ending on a big triumphant major chord, energetic and joyful, instrumental only"},
+      {"file": "win-5.mp3", "seconds": 6, "prompt": "Short rowdy accordion and fiddle shanty-style victory riff with stomps, ending on a cheerful major chord, instrumental only"}
     ]
   },
   "cosmos": {
     "spin": [
-      {
-        "file": "spin-1.mp3",
-        "seconds": 30,
-        "prompt": "Epic space-opera electronic instrumental at 120 BPM, pulsing synth bass, soaring orchestral strings, cosmic arpeggios, interstellar launch countdown energy, loop-friendly with no intro or ending, instrumental only"
-      },
-      {
-        "file": "spin-2.mp3",
-        "seconds": 30,
-        "prompt": "Retro sci-fi lounge instrumental at 125 BPM, theremin-like lead, bubbly analog synths, swinging drums, playful flying-saucer game-show vibe, loop-friendly, instrumental only"
-      },
-      {
-        "file": "spin-3.mp3",
-        "seconds": 30,
-        "prompt": "Dark cinematic ambient-techno instrumental, deep droning bass, ticking clock-like hi-hats, ominous rising synth pads, gravitational tension near a black hole, loop-friendly, instrumental only"
-      }
+      {"file": "spin-1.mp3", "seconds": 20, "prompt": "Epic space-opera electronica at 120 BPM, pulsing synth bass, soaring orchestral strings, cosmic arpeggios, launch-countdown energy, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-2.mp3", "seconds": 20, "prompt": "Retro sci-fi lounge at 125 BPM, theremin-like lead, bubbly analog synths, swinging drums, playful flying-saucer game-show vibe, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-3.mp3", "seconds": 20, "prompt": "Dark cinematic ambient-techno at 115 BPM, droning bass, ticking clock-like hi-hats, ominous rising pads, gravitational tension, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-4.mp3", "seconds": 20, "prompt": "Uplifting trance at 136 BPM, gated supersaw chords, rolling bassline, euphoric plucked lead, warp-speed excitement, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-5.mp3", "seconds": 20, "prompt": "Funky space-disco at 118 BPM, octave bass, wah guitar, lush string stabs, bright synth melody, zero-gravity dance party, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-6.mp3", "seconds": 20, "prompt": "Minimal suspenseful sci-fi pulse at 105 BPM, sequencer arpeggio, radio-static textures, heartbeat kick, distant choir pads, mission-control countdown, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"}
     ],
     "win": [
-      {
-        "file": "win-1.mp3",
-        "seconds": 6,
-        "prompt": "Short cosmic victory fanfare, bright brass and choir swell over glittering synth sparkles, ending on a huge major chord like a supernova, instrumental only"
-      }
+      {"file": "win-1.mp3", "seconds": 6, "prompt": "Short cosmic victory fanfare, bright brass and choir swell over glittering synth sparkles, ending on a huge major chord like a supernova, instrumental only"},
+      {"file": "win-2.mp3", "seconds": 4, "prompt": "Short retro sci-fi success jingle, bubbly analog synth arpeggio and a theremin-like swoop ending on a bright chord, instrumental only"},
+      {"file": "win-3.mp3", "seconds": 5, "prompt": "Short euphoric trance victory sting at 138 BPM, starts instantly with a pumping kick and rolling offbeat bass, bright supersaw chord stabs play a quick uplifting rising melody, one short snare fill, then a crisp wide major-chord hit and stop, energetic and celebratory, instrumental only"},
+      {"file": "win-4.mp3", "seconds": 5, "prompt": "Short space-disco celebration sting, funky string stab, octave bass slide and sparkling chimes, ending on a glossy chord, instrumental only"},
+      {"file": "win-5.mp3", "seconds": 5, "prompt": "Short playful future-bass victory sting at 150 BPM, punchy kick and claps from the first beat, wobbly detuned synth chord stabs, sparkling bell arpeggio, cute pitched synth chops with no vocals, ending on a bright wide chord hit and stop, bouncy and joyful, instrumental only"}
     ]
   }
 }

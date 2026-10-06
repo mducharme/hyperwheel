@@ -11,137 +11,217 @@ export interface ThemeMusic {
   win: TrackSpec[];
 }
 
+type Kind = 'spin' | 'win';
+
+/** Something playable: a generated track URL or an uploaded file. */
+interface Source {
+  key: string;
+  load(): Promise<ArrayBuffer>;
+}
+
+interface Prepared {
+  key: string;
+  promise: Promise<AudioBuffer | null>;
+  /** Set once decoding settles (undefined = still working). */
+  buffer?: AudioBuffer | null;
+}
+
+/** Decoded tracks kept in memory (20 s of stereo audio is ~7 MB decoded). */
+const CACHE_SIZE = 6;
+
 /**
- * Spin music, wheelofnames-style. Uses generated tracks from
- * `public/music/<theme>/` when they exist and falls back to the theme's
- * procedural chiptune otherwise — so the app sounds right before any audio
- * files have been generated.
+ * Where the audible part of a track starts and ends. MP3 files carry encoder
+ * padding (near-silence) at both ends, which turns into a gap or click every
+ * time a loop wraps around; looping only the audible part avoids that.
+ */
+function audibleRange(buffer: AudioBuffer): { start: number; end: number } {
+  const threshold = 0.004;
+  const channels = Array.from({ length: buffer.numberOfChannels }, (_, c) => buffer.getChannelData(c));
+  const loud = (i: number) => channels.some((d) => Math.abs(d[i]) > threshold);
+  const limit = Math.min(buffer.length, Math.floor(buffer.sampleRate * 0.5)); // trim at most 0.5 s per side
+  let first = 0;
+  while (first < limit && !loud(first)) first++;
+  let last = buffer.length - 1;
+  while (last > buffer.length - 1 - limit && !loud(last)) last--;
+  if (last <= first) return { start: 0, end: buffer.duration };
+  return { start: first / buffer.sampleRate, end: (last + 1) / buffer.sampleRate };
+}
+
+/**
+ * Spin music and win stings, wheelofnames-style.
+ *
+ * Sources, in priority order: the wheel's uploaded files, then generated tracks
+ * in `public/music/<scene>/` (this scene's, or every scene's spin songs when
+ * `mixAll` is on), then the scene's procedural chiptune — so the app sounds
+ * right before any audio has been generated.
+ *
+ * Rather than decoding everything up front (dozens of tracks would cost
+ * hundreds of MB), the player always keeps the *next* random pick decoded and
+ * ready, so a spin or a win starts instantly.
  */
 export class Music {
   enabled = true;
+  private mixAll = false;
   private synth: ChipSynth;
-  private buffers = new Map<string, AudioBuffer | null>(); // null = missing
-  private loading = new Map<string, Promise<void>>();
+  private themeId = '';
+  private song: ChipSong | null = null;
+  private custom: Record<Kind, Source[]> = { spin: [], win: [] };
+  private missing = new Set<string>();
+  private cache = new Map<string, AudioBuffer>();
+  private next: Record<Kind, Prepared | null> = { spin: null, win: null };
+  private last: Record<Kind, string> = { spin: '', win: '' };
+  private lastVariant = -1;
   private source: AudioBufferSourceNode | null = null;
   private gain: GainNode | null = null;
-  private themeId = '';
-  private manifest: ThemeMusic = { spin: [], win: [] };
-  private song: ChipSong | null = null;
-  private lastSpin = -1;
   private winding = false;
-  /** The wheel's own uploaded audio, preferred over the scene's when present. */
-  private custom: { spin: AudioBuffer[]; win: AudioBuffer | null } = { spin: [], win: null };
+  private spinToken = 0;
 
-  constructor(private bus: AudioBus) {
+  constructor(
+    private bus: AudioBus,
+    private manifests: Record<string, ThemeMusic>,
+  ) {
     this.synth = new ChipSynth(bus);
   }
 
-  setTheme(id: string, manifest: ThemeMusic | undefined, song: ChipSong) {
+  setTheme(id: string, song: ChipSong) {
     this.stop(0.3);
     this.themeId = id;
-    this.manifest = manifest ?? { spin: [], win: [] };
     this.song = song;
-    this.lastSpin = -1;
-    // decode in the background as soon as audio is allowed
-    this.bus.onReady(() => {
-      if (this.themeId !== id) return;
-      for (const t of [...this.manifest.spin, ...this.manifest.win]) void this.load(this.url(t));
-    });
+    this.refresh();
   }
 
-  private url(t: TrackSpec) {
-    return `${import.meta.env.BASE_URL}music/${this.themeId}/${t.file}`;
+  /** Spin songs from every scene instead of only the current one. */
+  setMixAll(on: boolean) {
+    if (this.mixAll === on) return;
+    this.mixAll = on;
+    this.refresh('spin');
   }
 
-  private load(url: string): Promise<void> {
-    const ctx = this.bus.ctx;
-    if (!ctx) return Promise.resolve();
-    if (this.buffers.has(url)) return Promise.resolve();
-    let p = this.loading.get(url);
-    if (!p) {
-      p = (async () => {
-        try {
+  /** The wheel's uploaded files; they replace the scene's music while present. */
+  setCustom(spin: { id: string; blob: Blob }[], win: { id: string; blob: Blob }[]) {
+    const wrap = (f: { id: string; blob: Blob }): Source => ({ key: `upload:${f.id}`, load: () => f.blob.arrayBuffer() });
+    this.custom = { spin: spin.map(wrap), win: win.map(wrap) };
+    this.refresh();
+  }
+
+  // ------------------------------------------------------------------ choosing & decoding
+
+  private trackUrl(theme: string, t: TrackSpec) {
+    return `${import.meta.env.BASE_URL}music/${theme}/${t.file}`;
+  }
+
+  private pool(kind: Kind): Source[] {
+    if (this.custom[kind].length) return this.custom[kind];
+    const themes = kind === 'spin' && this.mixAll ? Object.keys(this.manifests) : [this.themeId];
+    return themes
+      .flatMap((theme) => (this.manifests[theme]?.[kind] ?? []).map((t) => this.trackUrl(theme, t)))
+      .filter((url) => !this.missing.has(url))
+      .map((url) => ({
+        key: url,
+        load: async () => {
           const res = await fetch(url);
           // dev servers answer missing files with index.html
-          const type = res.headers.get('content-type') ?? '';
-          if (!res.ok || type.includes('text/html')) throw new Error('missing');
-          this.buffers.set(url, await ctx.decodeAudioData(await res.arrayBuffer()));
-        } catch {
-          this.buffers.set(url, null);
-        }
-      })();
-      this.loading.set(url, p);
-    }
-    return p;
+          if (!res.ok || (res.headers.get('content-type') ?? '').includes('text/html')) throw new Error('missing');
+          return res.arrayBuffer();
+        },
+      }));
   }
 
-  /** Decode the wheel's uploaded files (blobs) once audio is unlocked. */
-  setCustom(spin: Blob[], win: Blob | null) {
-    const token = {};
-    this.customToken = token;
-    this.custom = { spin: [], win: null };
-    if (!spin.length && !win) {
-      this.customPending = null;
-      return;
+  private async decode(src: Source): Promise<AudioBuffer | null> {
+    const hit = this.cache.get(src.key);
+    if (hit) return hit;
+    try {
+      const buffer = await this.bus.ctx!.decodeAudioData(await src.load());
+      this.cache.set(src.key, buffer);
+      if (this.cache.size > CACHE_SIZE) this.cache.delete(this.cache.keys().next().value!);
+      return buffer;
+    } catch {
+      if (!src.key.startsWith('upload:')) this.missing.add(src.key);
+      return null;
     }
-    this.customPending = new Promise((resolve) =>
-      this.bus.onReady(async () => {
-        const ctx = this.bus.ctx!;
-        const decode = (b: Blob) => b.arrayBuffer().then((buf) => ctx.decodeAudioData(buf)).catch(() => null);
-        const [tracks, sting] = await Promise.all([Promise.all(spin.map(decode)), win ? decode(win) : Promise.resolve(null)]);
-        if (this.customToken === token) {
-          this.custom = { spin: tracks.filter((t): t is AudioBuffer => !!t), win: sting };
-          this.customPending = null;
-        }
-        resolve();
+  }
+
+  /** Pick and decode the next track of a kind (never the same as last time when there's a choice). */
+  private prepare(kind: Kind): Prepared | null {
+    if (!this.bus.ctx) return null;
+    const pool = this.pool(kind);
+    if (!pool.length) return (this.next[kind] = null);
+    const choices = pool.length > 1 ? pool.filter((s) => s.key !== this.last[kind]) : pool;
+    const src = choices[Math.floor(Math.random() * choices.length)];
+    const prepared: Prepared = {
+      key: src.key,
+      promise: this.decode(src).then((buffer) => {
+        prepared.buffer = buffer;
+        // a missing/broken file: quietly try another one
+        if (!buffer && this.next[kind] === prepared) this.prepare(kind);
+        return buffer;
       }),
-    );
-  }
-  private customToken = {};
-  /** Set while uploaded files are still decoding (the first spin after load waits for it). */
-  private customPending: Promise<void> | null = null;
-  private spinToken = 0;
-
-  private available(list: TrackSpec[]) {
-    return list.map((t) => this.buffers.get(this.url(t))).filter((b): b is AudioBuffer => !!b);
+    };
+    this.next[kind] = prepared;
+    return prepared;
   }
 
-  /** Start a random spin track (never the same one twice in a row). */
+  /** Sources changed: drop stale picks and prepare fresh ones once audio is available. */
+  private refresh(kind?: Kind) {
+    for (const k of kind ? [kind] : (['spin', 'win'] as const)) {
+      this.next[k] = null;
+      this.bus.onReady(() => {
+        if (!this.next[k]) this.prepare(k);
+      });
+    }
+  }
+
+  // ------------------------------------------------------------------ playback
+
+  /** Start a random spin song. */
   startSpin() {
     if (!this.enabled || !this.bus.ctx) return;
     this.stop(0.08);
     this.winding = false;
     const token = ++this.spinToken;
-    const go = () => {
-      if (token === this.spinToken && !this.winding) this.playSpin();
+    const prepared = this.next.spin ?? this.prepare('spin');
+    this.next.spin = null;
+    const go = (buffer: AudioBuffer | null) => {
+      if (token !== this.spinToken || this.winding) return;
+      if (buffer && prepared) {
+        this.last.spin = prepared.key;
+        this.play(buffer);
+      } else this.playChiptune();
+      this.prepare('spin'); // get the following one ready
     };
-    // the click that unlocks audio also starts the spin: give uploads a moment to decode
-    if (this.customPending) void Promise.race([this.customPending, new Promise((r) => setTimeout(r, 1500))]).then(go);
-    else go();
+    if (!prepared) return go(null);
+    if (prepared.buffer !== undefined) return go(prepared.buffer);
+    // the click that unlocks audio also starts the spin: give the first decode a moment
+    void Promise.race([prepared.promise, new Promise<null>((r) => setTimeout(() => r(null), 1500))]).then(go);
   }
 
-  private playSpin() {
-    const ctx = this.bus.ctx!;
-    const tracks = this.custom.spin.length ? this.custom.spin : this.available(this.manifest.spin);
-    const pool = tracks.length || 3;
-    let pick = Math.floor(Math.random() * pool);
-    if (pool > 1 && pick === this.lastSpin) pick = (pick + 1) % pool;
-    this.lastSpin = pick;
+  private loops = new WeakMap<AudioBuffer, { start: number; end: number }>();
 
-    if (tracks.length) {
-      const src = ctx.createBufferSource();
-      src.buffer = tracks[pick];
-      src.loop = true;
-      const g = ctx.createGain();
-      g.gain.setValueAtTime(0.0001, ctx.currentTime);
-      g.gain.exponentialRampToValueAtTime(1, ctx.currentTime + 0.25);
-      src.connect(g).connect(this.bus.music);
-      src.start();
-      this.source = src;
-      this.gain = g;
-    } else if (this.song) {
-      this.synth.start(this.song, pick);
-    }
+  private play(buffer: AudioBuffer) {
+    const ctx = this.bus.ctx!;
+    const src = ctx.createBufferSource();
+    src.buffer = buffer;
+    src.loop = true;
+    let range = this.loops.get(buffer);
+    if (!range) this.loops.set(buffer, (range = audibleRange(buffer)));
+    src.loopStart = range.start;
+    src.loopEnd = range.end;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(1, ctx.currentTime + 0.25);
+    src.connect(g).connect(this.bus.music);
+    src.start(0, range.start);
+    this.source = src;
+    this.gain = g;
+  }
+
+  private playChiptune() {
+    if (!this.song) return;
+    const variants = this.song.progressions.length;
+    let v = Math.floor(Math.random() * variants);
+    if (variants > 1 && v === this.lastVariant) v = (v + 1) % variants;
+    this.lastVariant = v;
+    this.synth.start(this.song, v);
   }
 
   /** Turntable power-down as the wheel creeps to a halt. */
@@ -156,8 +236,7 @@ export class Music {
       this.source.playbackRate.linearRampToValueAtTime(0.45, t + seconds);
       this.gain.gain.setValueAtTime(1, t);
       this.gain.gain.linearRampToValueAtTime(0.0001, t + seconds);
-      const src = this.source;
-      src.stop(t + seconds + 0.05);
+      this.source.stop(t + seconds + 0.05);
       this.source = null;
       this.gain = null;
     } else {
@@ -180,16 +259,20 @@ export class Music {
     if (this.synth.playing) this.synth.stop(fade);
   }
 
-  /** Play a win sting if the theme has one. Returns false so the caller can fall back. */
+  /** Play a random win sting if one is ready. Returns false so the caller can fall back. */
   win(): boolean {
     const ctx = this.bus.ctx;
     if (!this.enabled || !ctx) return false;
-    const stings = this.custom.win ? [this.custom.win] : this.available(this.manifest.win);
-    if (!stings.length) return false;
+    const prepared = this.next.win ?? this.prepare('win');
+    const buffer = prepared?.buffer;
+    if (!prepared || !buffer) return false; // not decoded yet (or none): synth fanfare this time
+    this.last.win = prepared.key;
+    this.next.win = null;
     const src = ctx.createBufferSource();
-    src.buffer = stings[Math.floor(Math.random() * stings.length)];
+    src.buffer = buffer;
     src.connect(this.bus.music);
     src.start();
+    this.prepare('win');
     return true;
   }
 }

@@ -14,6 +14,8 @@ export interface CharacterTemplate {
   clips: THREE.AnimationClip[];
   family: RigFamily;
   humanoid: boolean;
+  /** Clip names chosen by the pack as celebrations. */
+  celebrations?: string[];
 }
 
 export interface CharacterInstance {
@@ -25,16 +27,56 @@ export interface CharacterInstance {
   height: number;
   /** Lowest point, so feet can be placed on the ground. */
   minY: number;
+  celebrations?: string[];
 }
 
 /** Animations worth celebrating with, by name. */
 export const CELEBRATORY = /danc|salsa|flair|twerk|samba|hip.?hop|celebrat|victor|cheer|win|step|emote.?yes|wave|jump|clap|happy|fist|party|groove/i;
 
-const draco = new DRACOLoader().setDecoderPath(`${import.meta.env.BASE_URL}draco/`);
+// DRACOLoader's default decoder paths point at three's own copy, which Vite emits as assets
+const draco = new DRACOLoader();
 const gltfLoader = new GLTFLoader().setDRACOLoader(draco).setMeshoptDecoder(MeshoptDecoder);
 const fbxLoader = new FBXLoader();
 
 const templates = new Map<string, Promise<CharacterTemplate>>();
+const files = new Map<string, ReturnType<typeof gltfLoader.loadAsync>>();
+
+/** Shared glTF downloads (hair parts and animation files are reused across characters). */
+function loadFile(url: string) {
+  let p = files.get(url);
+  if (!p) {
+    p = gltfLoader.loadAsync(url);
+    files.set(url, p);
+    p.catch(() => files.delete(url));
+  }
+  return p;
+}
+
+/** Bind a part's skinned meshes (e.g. a hairstyle on the same rig) to the body's skeleton by bone name. */
+async function attachPart(body: THREE.Object3D, url: string) {
+  const part = cloneSkinned((await loadFile(url)).scene);
+  const bones = new Map<string, THREE.Bone>();
+  body.traverse((o) => {
+    if ((o as THREE.Bone).isBone) bones.set(o.name, o as THREE.Bone);
+  });
+  let host: THREE.Object3D | null = null;
+  body.traverse((o) => {
+    if (!host && (o as THREE.SkinnedMesh).isSkinnedMesh) host = o.parent;
+  });
+  const meshes: THREE.SkinnedMesh[] = [];
+  part.traverse((o) => {
+    if ((o as THREE.SkinnedMesh).isSkinnedMesh) meshes.push(o as THREE.SkinnedMesh);
+  });
+  for (const m of meshes) {
+    const skeleton = new THREE.Skeleton(
+      m.skeleton.bones.map((b) => bones.get(b.name) ?? b),
+      m.skeleton.boneInverses,
+    );
+    // in 'attached' mode the result doesn't depend on where the mesh sits in the tree
+    m.bind(skeleton, m.bindMatrix);
+    (host ?? body).add(m);
+  }
+}
 
 /**
  * Celebration clips seen this session from Mixamo-family rigs, keyed by their
@@ -98,9 +140,16 @@ async function loadTemplate(id: string): Promise<CharacterTemplate> {
     scene = group;
     clips = group.animations;
   } else {
-    const gltf = await gltfLoader.loadAsync(url);
-    scene = gltf.scene;
-    clips = gltf.animations;
+    const gltf = await loadFile(url);
+    // built-ins share cached files, so work on a private copy
+    scene = cloneSkinned(gltf.scene);
+    clips = [...gltf.animations];
+  }
+  const info = builtin(id);
+  for (const partUrl of info?.parts ?? []) await attachPart(scene, partUrl);
+  for (const animUrl of info?.animations ?? []) {
+    const extra = (await loadFile(animUrl)).animations;
+    for (const c of extra) if (!clips.some((k) => k.name === c.name)) clips.push(c);
   }
   scene.traverse((o) => {
     const m = o as THREE.Mesh;
@@ -110,7 +159,7 @@ async function loadTemplate(id: string): Promise<CharacterTemplate> {
     }
   });
   const rig = mapRig(scene);
-  const t: CharacterTemplate = { id, scene, clips, family: rig.family, humanoid: rig.humanoid };
+  const t: CharacterTemplate = { id, scene, clips, family: rig.family, humanoid: rig.humanoid, celebrations: info?.celebrations };
   register(t);
   return t;
 }
@@ -132,7 +181,15 @@ export async function instantiate(id: string): Promise<CharacterInstance> {
   object.updateMatrixWorld(true);
   const box = new THREE.Box3().setFromObject(object, true);
   const size = box.getSize(new THREE.Vector3());
-  return { id, object, clips: t.clips, rig: mapRig(object), height: Math.max(0.01, size.y), minY: box.min.y };
+  return {
+    id,
+    object,
+    clips: t.clips,
+    rig: mapRig(object),
+    height: Math.max(0.01, size.y),
+    minY: box.min.y,
+    celebrations: t.celebrations,
+  };
 }
 
 /** Validate an uploaded file by actually loading it. Returns a short report. */

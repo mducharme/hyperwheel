@@ -27,7 +27,7 @@ Everything is stored locally in your browser (IndexedDB). There's no account and
   - **Autosave:** every change is saved automatically.
   - **Export** writes one `.hyperwheel` file (a zip) containing the names, settings and every uploaded model and audio file. Import it on another device to get the whole wheel back.
   - **Share link** puts the names, built-in characters and settings in the URL. Uploaded files can't fit in a link, so use Export for those.
-- **Characters:** on the Entries tab, switch to **Characters** to pick a character for each name.
+- **Characters:** on the Entries tab, switch to **Characters** to pick a character for each name. The picker has a search box. Uploaded models are preloaded in the background after startup, so their dance clips are shared between all your Mixamo-rigged characters from the first spin.
   - **Upload** rigged humanoid `.glb` (Draco and meshopt compression supported) or `.fbx` files. Mixamo rigs work best.
   - **Default:** names without a character get a built-in one, chosen by hashing the name so each name always keeps the same look.
   - **Winner reveal:** the winner's character is loaded while the wheel spins, then arrives with the scene's entrance (beam, pop, rise or teleport) and celebrates.
@@ -35,15 +35,27 @@ Everything is stored locally in your browser (IndexedDB). There's no account and
     1. Its own dance clips: any clip whose name matches dance, salsa, flair, step, wave, cheer, emote-yes and so on.
     2. Dances borrowed from other Mixamo characters you've loaded this session.
     3. A code-driven routine (cheer, jumping jacks, wave, spin-hop, dab) that aims each limb at a target direction, so it works with T-pose, A-pose or blocky rigs.
-- **Your audio:** Settings → *This wheel's music* takes uploaded spin tracks and a win sound. They're saved with the wheel, included in exports, and take priority over the scene's music.
+- **Your audio:** Settings → *This wheel's music* takes any number of uploaded spin songs and win sounds. They're saved with the wheel, included in exports, and take priority over the scene's music.
 
-### Built-in characters
+### Built-in character packs
 
-`public/characters/kenney/` holds [Kenney's Blocky Characters](https://kenney.nl/assets/blocky-characters) (CC0). To add a pack, put the GLBs under `public/characters/<pack>/` and list them in `src/characters/catalog.ts`.
+Packs are switched on and off in Settings → *Character packs*. Names without a character get one from the enabled packs. All packs are CC0 (public domain).
+
+| Pack | Characters | Source | On by default |
+|---|---|---|---|
+| Adventurers | 6 | [KayKit Adventurers](https://kaylousberg.itch.io/kaykit-adventurers), with the jump clips from its shared animation files | yes |
+| Blocky | 18 | [Kenney Blocky Characters](https://kenney.nl/assets/blocky-characters) | yes |
+
+The KayKit files were optimized with [gltf-transform](https://gltf-transform.dev) (WebP textures and meshopt compression), so each character is about 140 KB.
+
+**To add a pack:** put the GLBs under `public/characters/<pack>/` and add a `CharacterPack` to `src/characters/catalog.ts`. A pack entry can also declare:
+- `parts`: extra skinned meshes bound to the skeleton, like hairstyles;
+- `animations`: extra files whose clips are merged in;
+- `celebrations`: which clips to celebrate with.
 
 ## Music (ElevenLabs)
 
-Each scene has 3 spin tracks and 1 win sting. They're listed with their prompts in [`src/themes/music.json`](src/themes/music.json).
+Each scene has 6 spin songs and 5 win stings, 44 tracks in all. They're listed with their prompts in [`src/themes/music.json`](src/themes/music.json).
 
 ```sh
 export ELEVENLABS_API_KEY=...
@@ -52,7 +64,11 @@ npm run music                        # generate every missing track
 node scripts/generate-music.mjs abyss --force   # redo one scene
 ```
 
-Files go to `public/music/<scene>/` and are loaded automatically. Each spin picks a random track, never the same one twice in a row, and the music winds down like a turntable losing power as the wheel stops. **Before you generate anything**, each scene plays its own procedurally generated chiptune instead (`audio/ChipSynth.ts`), so the app is never silent. You can also drop in your own `.mp3` files using the same names.
+Files go to `public/music/<scene>/` and are loaded automatically. Each spin picks a random song, never the same one twice in a row, and the music winds down like a turntable losing power as the wheel stops. Each win plays a random sting. Settings → Music can switch spin songs to **all scenes**.
+
+The player doesn't decode every track up front, which would take hundreds of MB. It always keeps the next random pick decoded and ready, and skips files that don't exist yet.
+
+A wheel can also have its own uploaded spin songs and win sounds, several of each. They're saved with the wheel, take priority over the scene's music, and are included in exports. **Before you generate anything**, each scene plays its own procedurally generated chiptune instead (`audio/ChipSynth.ts`), so the app is never silent. You can also drop in your own `.mp3` files using the same names.
 
 ## Architecture
 

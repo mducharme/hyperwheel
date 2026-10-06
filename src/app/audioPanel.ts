@@ -3,7 +3,7 @@ import type { Session } from './session';
 import type { App } from './App';
 import { assetUrl, getAsset, putAsset } from '../library/assets';
 
-/** Settings → this wheel's music: upload spin tracks and a win sound. */
+/** Settings → this wheel's music: upload spin songs and win sounds (several of each). */
 export class AudioPanel {
   private preview: HTMLAudioElement | null = null;
   private enabledEl = $<HTMLInputElement>('audio-enabled');
@@ -27,7 +27,7 @@ export class AudioPanel {
 
   private async add(kind: 'spin' | 'win') {
     const input = $<HTMLInputElement>('file-audio');
-    input.multiple = kind === 'spin';
+    input.multiple = true;
     const files = await pickFiles(input);
     const audio = this.session.doc.audio;
     for (const file of files) {
@@ -36,8 +36,8 @@ export class AudioPanel {
         const ctx = new OfflineAudioContext(1, 1, 44100);
         await ctx.decodeAudioData(await file.arrayBuffer());
         const asset = await putAsset(file, 'audio', file.name);
-        if (kind === 'win') audio.win = asset.id;
-        else if (!audio.spin.includes(asset.id)) audio.spin.push(asset.id);
+        const list = kind === 'win' ? audio.wins : audio.spin;
+        if (!list.includes(asset.id)) list.push(asset.id);
       } catch (err) {
         toast(`${file.name}: ${err instanceof Error && err.message.includes('MB') ? err.message : "can't decode this audio file"}`, 'error');
       }
@@ -45,7 +45,8 @@ export class AudioPanel {
     if (files.length) {
       audio.enabled = true;
       this.session.touch('audio');
-      toast(kind === 'win' ? 'Win sound set' : `${files.length} track${files.length > 1 ? 's' : ''} added`);
+      const n = files.length;
+      toast(`${n} ${kind === 'win' ? 'win sound' : 'spin song'}${n > 1 ? 's' : ''} added`);
     }
   }
 
@@ -93,24 +94,20 @@ export class AudioPanel {
         }),
       ),
     );
-    $('win-track').replaceChildren(
-      ...(audio.win
-        ? [
-            this.row(audio.win, () => {
-              audio.win = null;
-              this.session.touch('audio');
-            }),
-          ]
-        : []),
+    $('win-tracks').replaceChildren(
+      ...audio.wins.map((id) =>
+        this.row(id, () => {
+          audio.wins = audio.wins.filter((x) => x !== id);
+          this.session.touch('audio');
+        }),
+      ),
     );
-    $('add-win').textContent = audio.win ? '⬆ Replace win sound' : '⬆ Set win sound';
 
-    if (!audio.enabled) return this.app.music.setCustom([], null);
-    const blobs = await Promise.all(audio.spin.map((id) => getAsset(id).then((a) => a?.blob ?? null)));
-    const win = audio.win ? ((await getAsset(audio.win))?.blob ?? null) : null;
-    this.app.music.setCustom(
-      blobs.filter((b): b is Blob => !!b),
-      win,
-    );
+    if (!audio.enabled) return this.app.music.setCustom([], []);
+    const files = async (ids: string[]) =>
+      (await Promise.all(ids.map(async (id) => ({ id, blob: (await getAsset(id))?.blob })))).filter(
+        (f): f is { id: string; blob: Blob } => !!f.blob,
+      );
+    this.app.music.setCustom(await files(audio.spin), await files(audio.wins));
   }
 }

@@ -31,8 +31,8 @@ import { Particles } from '../../fx/Particles';
 import type { FxDirector, FxItem } from '../../fx/FxDirector';
 import { uSpeed, uWin } from '../../engine/globals';
 import { SCALES } from '../../audio/ChipSynth';
+import { meta, PALETTE } from './meta';
 
-const PALETTE = ['#00e5ff', '#1de9b6', '#2979ff', '#00b8d4', '#651fff', '#64ffda'];
 const WATER = '#06243f';
 
 const inst = (data: Float32Array, size: number, type: string): any =>
@@ -320,11 +320,7 @@ class Jellies implements FxItem {
 // ------------------------------------------------------------------ theme
 
 export const abyss: Theme = {
-  id: 'abyss',
-  name: 'Deep Sea',
-  emoji: '🐙',
-  tagline: 'Caustics, kelp forests and a fish tornado',
-  ui: { accent: '#2fffd6', accent2: '#7b8cff', accent3: '#ffd166' },
+  ...meta,
   wheel: {
     palette: PALETTE,
     font: '"Bungee"',

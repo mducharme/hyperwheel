@@ -9,6 +9,12 @@ export interface Prefs {
   fx: boolean;
   characters: boolean;
   currentWheel: string | null;
+  /** Enabled built-in character packs (null = the defaults). */
+  packs: string[] | null;
+  /** Last scene shown — a hint to start downloading it before the wheel document is read. */
+  lastTheme: string | null;
+  /** Spin songs from every scene instead of only the current one. */
+  musicMix: boolean;
 }
 
 /** Fields from before wheels moved to IndexedDB, read once for migration. */
@@ -23,7 +29,7 @@ export interface LegacyState {
   results?: { name: string; at: number }[];
 }
 
-const defaults: Prefs = { sound: true, music: true, fx: true, characters: true, currentWheel: null };
+const defaults: Prefs = { sound: true, music: true, fx: true, characters: true, currentWheel: null, packs: null, lastTheme: null, musicMix: false };
 
 const raw: (Prefs & LegacyState) | null = (() => {
   try {
@@ -35,12 +41,13 @@ const raw: (Prefs & LegacyState) | null = (() => {
 })();
 
 export const store: Prefs = { ...defaults, ...(raw ?? {}) };
+store.lastTheme ??= raw?.theme ?? null;
 export const legacy: LegacyState | null = raw && raw.text !== undefined ? raw : null;
 
 export function persist() {
   try {
-    const { sound, music, fx, characters, currentWheel } = store;
-    localStorage.setItem(STORE_KEY, JSON.stringify({ sound, music, fx, characters, currentWheel }));
+    const { sound, music, fx, characters, currentWheel, packs, lastTheme, musicMix } = store;
+    localStorage.setItem(STORE_KEY, JSON.stringify({ sound, music, fx, characters, currentWheel, packs, lastTheme, musicMix }));
   } catch {
     /* private mode etc. */
   }

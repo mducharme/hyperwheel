@@ -24,7 +24,7 @@ export class Session {
 
   /** Boot: a share link, else the last wheel, else migrate the pre-library state. */
   async load(): Promise<{ fromLink: boolean }> {
-    const shared = readShareLink();
+    const shared = await readShareLink();
     if (shared) {
       history.replaceState(null, '', location.pathname + location.search);
       await wheels.save(shared);

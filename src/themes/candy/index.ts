@@ -26,8 +26,8 @@ import { Particles } from '../../fx/Particles';
 import type { FxDirector, FxItem } from '../../fx/FxDirector';
 import { uSpeed, uWin } from '../../engine/globals';
 import { SCALES } from '../../audio/ChipSynth';
+import { meta, PALETTE } from './meta';
 
-const PALETTE = ['#ff8fab', '#ffd166', '#06d6a0', '#4cc9f0', '#b388ff', '#ff9e5e'];
 
 // ------------------------------------------------------------------ sprites
 
@@ -244,11 +244,7 @@ class Gumballs implements FxItem {
 // ------------------------------------------------------------------ theme
 
 export const candy: Theme<CandyScene> = {
-  id: 'candy',
-  name: 'Sugar Rush',
-  emoji: '🍭',
-  tagline: 'Cotton-candy skies and a gumball cannon',
-  ui: { accent: '#ff6fb5', accent2: '#5ee6c8', accent3: '#ffd166' },
+  ...meta,
   wheel: {
     palette: PALETTE,
     font: '"Fredoka"',

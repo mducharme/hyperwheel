@@ -1,7 +1,10 @@
 import * as THREE from 'three/webgpu';
 import { float, pow, uniform, uv } from 'three/tsl';
-import { instantiate, type CharacterInstance } from './loader';
-import { Performer } from './Performer';
+import type { CharacterInstance } from './loader';
+import type { Performer } from './Performer';
+
+// Model loaders (glTF, Draco, meshopt, FBX) are a separate chunk, fetched on first use.
+const runtime = () => Promise.all([import('./loader'), import('./Performer')]);
 
 export type Entrance = 'beam' | 'pop' | 'rise' | 'teleport';
 
@@ -65,7 +68,9 @@ export class Showcase {
   preload(id: string) {
     if (this.pendingId === id && this.pending) return;
     this.pendingId = id;
-    this.pending = instantiate(id).catch((err) => {
+    this.pending = runtime()
+      .then(([loader]) => loader.instantiate(id))
+      .catch((err) => {
       console.warn('character failed to load', id, err);
       return null;
     });
@@ -84,6 +89,7 @@ export class Showcase {
     inst.object.scale.multiplyScalar(this.scale);
     inst.object.position.y -= inst.minY * this.scale;
     this.mover.add(inst.object);
+    const [, { Performer }] = await runtime();
     this.performer = new Performer(inst);
     this.current = { name, description: this.performer.description };
 

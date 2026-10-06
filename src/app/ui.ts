@@ -6,8 +6,8 @@ import { WheelMenu } from './wheelMenu';
 import { EntriesView } from './entriesView';
 import { AudioPanel } from './audioPanel';
 import { reconcile } from '../library/wheels';
-import { THEMES, getTheme } from '../themes';
-import type { Theme } from '../themes/types';
+import { THEMES, getTheme, type ThemeEntry } from '../themes';
+import { DEFAULT_PACKS, PACKS, setEnabledPacks } from '../characters/catalog';
 
 /** DOM side of the app: panel, scene picker, settings and the winner dialog. */
 export class UI {
@@ -94,7 +94,7 @@ export class UI {
     const theme = getTheme(doc.settings.theme);
     if (this.app.theme?.id !== theme.id) {
       this.markTheme(theme);
-      await this.app.setTheme(theme);
+      await this.app.setTheme(await theme.load());
       this.renderPreviews();
     }
   }
@@ -263,6 +263,54 @@ export class UI {
     });
     toggle('fx', 'fx', (on) => this.app.stage.setFx(on));
     toggle('characters', 'characters', (on) => (this.app.charactersEnabled = on));
+
+    const mix = $('music-source');
+    const syncMix = () => {
+      this.app.music.setMixAll(store.musicMix);
+      mix.querySelectorAll<HTMLButtonElement>('button').forEach((b) => {
+        const on = (b.dataset.mix === 'all') === store.musicMix;
+        b.classList.toggle('active', on);
+        b.setAttribute('aria-checked', String(on));
+      });
+    };
+    mix.querySelectorAll<HTMLButtonElement>('button').forEach((b) =>
+      b.addEventListener('click', () => {
+        store.musicMix = b.dataset.mix === 'all';
+        persist();
+        syncMix();
+      }),
+    );
+    syncMix();
+    this.initPacks();
+  }
+
+  /** Built-in character packs: which ones feed automatic characters and the picker. */
+  private initPacks() {
+    // saved choices that mention retired packs start over from the defaults
+    if (store.packs?.some((id) => !PACKS.some((p) => p.id === id))) store.packs = null;
+    const active = new Set(store.packs ?? DEFAULT_PACKS);
+    setEnabledPacks([...active]);
+    $('pack-list').replaceChildren(
+      ...PACKS.map((p) => {
+        const input = el('input', { type: 'checkbox', checked: active.has(p.id) });
+        input.addEventListener('change', () => {
+          if (input.checked) active.add(p.id);
+          else active.delete(p.id);
+          store.packs = [...active];
+          setEnabledPacks(store.packs);
+          persist();
+          // automatic characters come from the enabled packs, so refresh the lists
+          this.session.touch('entries');
+        });
+        const credit = el('a', { href: p.link, target: '_blank', rel: 'noopener' }, p.credit);
+        return el(
+          'label',
+          { className: 'pack-row' },
+          input,
+          el('span', {}, el('strong', {}, `${p.name} · ${p.characters.length}`), el('small', {}, p.description), credit),
+        );
+      }),
+    );
   }
 
   /** Settings that belong to the wheel document. */
@@ -318,7 +366,7 @@ export class UI {
       b.addEventListener('click', () => void this.selectTheme(t));
       dock.append(b);
 
-      const swatch = el('span', { className: 'swatch' }, ...t.wheel.palette.map((c) => {
+      const swatch = el('span', { className: 'swatch' }, ...t.palette.map((c) => {
         const i = el('i');
         i.style.background = c;
         return i;
@@ -331,23 +379,27 @@ export class UI {
   }
 
   /** The scene to load after a spin: next in the list, or a random different one. */
-  private pickNextTheme(): Theme<any> {
+  private pickNextTheme(): ThemeEntry {
     const i = THEMES.findIndex((t) => t.id === this.app.theme?.id);
     if (this.session.doc.settings.switchMode === 'next' || THEMES.length < 2) return THEMES[(i + 1) % THEMES.length];
     const others = THEMES.filter((_, j) => j !== i);
     return others[Math.floor(Math.random() * others.length)];
   }
 
-  async selectTheme(theme: Theme<any>) {
+  async selectTheme(theme: ThemeEntry) {
     if (this.app.theme?.id === theme.id || this.app.spin.spinning) return;
     this.session.doc.settings.theme = theme.id;
     this.session.touch('settings');
     this.markTheme(theme);
-    await this.app.setTheme(theme);
+    await this.app.setTheme(await theme.load());
     this.renderPreviews();
   }
 
-  private markTheme(theme: Theme<any>) {
+  private markTheme(theme: ThemeEntry) {
+    if (store.lastTheme !== theme.id) {
+      store.lastTheme = theme.id;
+      persist();
+    }
     document.querySelectorAll<HTMLElement>('#scenes button, #scene-list button').forEach((b) => {
       b.classList.toggle('active', b.dataset.id === theme.id);
     });

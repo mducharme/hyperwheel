@@ -1,4 +1,5 @@
-import { strFromU8, strToU8, unzipSync, zipSync, deflateSync, inflateSync } from 'fflate';
+// zip/deflate is only needed for export, import and share links: load it on demand
+const zip = () => import('fflate');
 import { db } from './db';
 import { getAsset, putAsset, type AssetKind } from './assets';
 
@@ -20,8 +21,8 @@ export interface WheelSettings {
 export interface WheelAudio {
   /** Uploaded spin tracks (asset ids). */
   spin: string[];
-  /** Uploaded win sound (asset id). */
-  win: string | null;
+  /** Uploaded win sounds (asset ids); one is picked at random per win. */
+  wins: string[];
   /** Prefer these over the scene's own music. */
   enabled: boolean;
 }
@@ -56,11 +57,17 @@ export function newWheel(title = 'My wheel', names: string[] = []): WheelDoc {
     title,
     entries: names.map((name) => ({ id: uid(), name })),
     settings: { ...DEFAULT_SETTINGS },
-    audio: { spin: [], win: null, enabled: true },
+    audio: { spin: [], wins: [], enabled: true },
     results: [],
     createdAt: now,
     updatedAt: now,
   };
+}
+
+/** Older wheels stored a single `win` sound. */
+function normalizeAudio(a: Partial<WheelAudio> & { win?: string | null } = {}): WheelAudio {
+  const wins = a.wins ?? (a.win ? [a.win] : []);
+  return { spin: a.spin ?? [], wins, enabled: a.enabled ?? true };
 }
 
 /** Fill in fields added in later versions. */
@@ -69,7 +76,7 @@ function normalize(w: WheelDoc): WheelDoc {
     ...newWheel(w.title),
     ...w,
     settings: { ...DEFAULT_SETTINGS, ...w.settings },
-    audio: Object.assign({ spin: [], win: null, enabled: true }, w.audio),
+    audio: normalizeAudio(w.audio),
     results: w.results ?? [],
   };
 }
@@ -104,8 +111,7 @@ export const wheels = {
 export function wheelAssets(w: WheelDoc): { id: string; kind: AssetKind }[] {
   const ids = new Map<string, AssetKind>();
   for (const e of w.entries) if (e.character && !e.character.startsWith('builtin:')) ids.set(e.character, 'model');
-  for (const id of w.audio.spin) ids.set(id, 'audio');
-  if (w.audio.win) ids.set(w.audio.win, 'audio');
+  for (const id of [...w.audio.spin, ...w.audio.wins]) ids.set(id, 'audio');
   return [...ids].map(([id, kind]) => ({ id, kind }));
 }
 
@@ -132,6 +138,7 @@ interface Manifest {
 
 /** Bundle a wheel and every file it uses into one downloadable zip. */
 export async function exportWheel(w: WheelDoc): Promise<Blob> {
+  const { strToU8, zipSync } = await zip();
   const files: Record<string, Uint8Array> = {};
   const manifest: Manifest = { format: 'hyperwheel', version: 1, wheel: { ...w, thumb: undefined }, assets: [] };
   for (const { id } of wheelAssets(w)) {
@@ -149,6 +156,7 @@ export async function exportWheel(w: WheelDoc): Promise<Blob> {
 
 /** Import a .hyperwheel file as a new wheel (its files are added to the library). */
 export async function importWheel(file: Blob): Promise<WheelDoc> {
+  const { strFromU8, unzipSync } = await zip();
   const files = unzipSync(new Uint8Array(await file.arrayBuffer()));
   const raw = files['wheel.json'];
   if (!raw) throw new Error('Not a HyperWheel file (wheel.json is missing).');
@@ -167,7 +175,7 @@ export async function importWheel(file: Blob): Promise<WheelDoc> {
   const wheel = wheels.duplicate(w, w.title);
   wheel.entries = wheel.entries.map((e) => ({ ...e, character: e.character ? (remap.get(e.character) ?? e.character) : undefined }));
   wheel.audio.spin = wheel.audio.spin.map((id) => remap.get(id) ?? id);
-  if (wheel.audio.win) wheel.audio.win = remap.get(wheel.audio.win) ?? wheel.audio.win;
+  wheel.audio.wins = wheel.audio.wins.map((id) => remap.get(id) ?? id);
   await wheels.save(wheel);
   return wheel;
 }
@@ -186,7 +194,8 @@ const b64url = (u8: Uint8Array) => btoa(String.fromCharCode(...u8)).replace(/\+/
 const fromB64url = (s: string) => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0));
 
 /** A link carrying names, built-in characters and settings. Uploaded files can't fit in a URL. */
-export function shareLink(w: WheelDoc): { url: string; dropped: number } {
+export async function shareLink(w: WheelDoc): Promise<{ url: string; dropped: number }> {
+  const { strToU8, deflateSync } = await zip();
   const builtins = w.entries.map((e) => (e.character?.startsWith('builtin:') ? e.character.slice(8) : ''));
   const payload: Shared = { t: w.title, n: w.entries.map((e) => e.name), s: w.settings };
   if (builtins.some(Boolean)) payload.c = builtins;
@@ -196,10 +205,11 @@ export function shareLink(w: WheelDoc): { url: string; dropped: number } {
 }
 
 /** If the page was opened from a share link, turn it into a new wheel. */
-export function readShareLink(): WheelDoc | null {
+export async function readShareLink(): Promise<WheelDoc | null> {
   const m = location.hash.match(/^#w=([\w-]+)/);
   if (!m) return null;
   try {
+    const { strFromU8, inflateSync } = await zip();
     const p = JSON.parse(strFromU8(inflateSync(fromB64url(m[1])))) as Shared;
     const w = newWheel(p.t || 'Shared wheel', p.n ?? []);
     w.entries.forEach((e, i) => {

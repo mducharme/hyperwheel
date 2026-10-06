@@ -43,13 +43,18 @@ export interface Celebration {
   setup(fx: FxDirector): () => void;
 }
 
-export interface Theme<S extends ThemeScene = ThemeScene> {
+/** The lightweight part of a theme: enough for menus and swatches without loading the scene. */
+export interface ThemeMeta {
   id: string;
   name: string;
   emoji: string;
   tagline: string;
   /** Panel accent colours (CSS). */
   ui: { accent: string; accent2: string; accent3: string };
+  palette: string[];
+}
+
+export interface Theme<S extends ThemeScene = ThemeScene> extends ThemeMeta {
   wheel: WheelStyle;
   post: PostStyle;
   camera?: Partial<CameraStyle>;

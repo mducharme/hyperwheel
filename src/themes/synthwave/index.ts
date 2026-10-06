@@ -25,8 +25,8 @@ import { makeAtlas, shapes } from '../../fx/atlas';
 import { starField } from '../../fx/nodes';
 import { uSpeed, uWin } from '../../engine/globals';
 import { SCALES } from '../../audio/ChipSynth';
+import { meta, PALETTE } from './meta';
 
-const PALETTE = ['#ff2fd0', '#7b2fff', '#2fd8ff', '#ffcf2f', '#ff5a5f', '#2fffa8'];
 
 /** Anti-aliased grid lines over a 2D coordinate. */
 const gridLines = (p: any, cell: number) => {
@@ -98,11 +98,7 @@ const atlas = () =>
   ]);
 
 export const synthwave: Theme = {
-  id: 'synthwave',
-  name: 'Neon Drive',
-  emoji: '🌆',
-  tagline: 'Retro sun, chrome grids, laser cannons',
-  ui: { accent: '#ff3df2', accent2: '#3df5ff', accent3: '#ffe03d' },
+  ...meta,
   wheel: {
     palette: PALETTE,
     font: '"Unbounded"',

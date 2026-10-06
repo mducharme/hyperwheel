@@ -1,17 +1,38 @@
-import type { Theme } from './types';
+import type { Theme, ThemeMeta } from './types';
 import type { ThemeMusic } from '../audio/Music';
-import { synthwave } from './synthwave';
-import { candy } from './candy';
-import { abyss } from './abyss';
-import { cosmos } from './cosmos';
+import { meta as synthwave } from './synthwave/meta';
+import { meta as candy } from './candy/meta';
+import { meta as abyss } from './abyss/meta';
+import { meta as cosmos } from './cosmos/meta';
 import music from './music.json';
 
-/**
- * Theme registry. To add a scene: create `themes/<id>/index.ts` exporting a
- * `Theme`, add it here, and (optionally) add tracks for it in `music.json`.
- */
-export const THEMES: Theme<any>[] = [synthwave, candy, abyss, cosmos];
+export interface ThemeEntry extends ThemeMeta {
+  /** Load the scene module (cached; the first call downloads it). */
+  load(): Promise<Theme<any>>;
+}
 
-export const getTheme = (id: string): Theme<any> => THEMES.find((t) => t.id === id) ?? THEMES[0];
+const once = <T>(fn: () => Promise<T>) => {
+  let p: Promise<T> | null = null;
+  return () => (p ??= fn());
+};
+
+/**
+ * Theme registry. Only metadata is in the main bundle; each scene's code is
+ * its own chunk, fetched when the scene is first shown (and prefetched when idle).
+ *
+ * To add a scene: create `themes/<id>/meta.ts` + `themes/<id>/index.ts`
+ * exporting a `Theme`, list it here, and optionally add tracks to `music.json`.
+ */
+export const THEMES: ThemeEntry[] = [
+  { ...synthwave, load: once(() => import('./synthwave').then((m) => m.synthwave)) },
+  { ...candy, load: once(() => import('./candy').then((m) => m.candy)) },
+  { ...abyss, load: once(() => import('./abyss').then((m) => m.abyss)) },
+  { ...cosmos, load: once(() => import('./cosmos').then((m) => m.cosmos)) },
+];
+
+export const getTheme = (id: string): ThemeEntry => THEMES.find((t) => t.id === id) ?? THEMES[0];
+
+/** Fetch every scene in the background so switching is instant. */
+export const prefetchThemes = () => THEMES.forEach((t) => void t.load());
 
 export const MUSIC = music as Record<string, ThemeMusic>;

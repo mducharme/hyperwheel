@@ -78,8 +78,8 @@ export function mapRig(root: THREE.Object3D): Rig {
   const bones: Rig['bones'] = {};
   bones.hips = pick('hips', 'hip', 'pelvis', 'root');
   bones.spine = pick('spine', 'spine0', 'torso', 'spine01');
-  bones.chest = pick('spine2', 'spine02', 'chest', 'upperchest', 'spine1');
-  bones.neck = pick('neck', 'neck1');
+  bones.chest = pick('spine2', 'spine02', 'spine03', 'chest', 'upperchest', 'spine1');
+  bones.neck = pick('neck', 'neck1', 'neck01');
   bones.head = pick('head');
   for (const side of ['left', 'right'] as const) {
     const s = (p: string) => `${side}:${p}`;

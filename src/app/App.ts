@@ -15,7 +15,7 @@ import { MUSIC } from '../themes';
 import type { Theme, ThemeScene } from '../themes/types';
 import { DragSpin } from './DragSpin';
 import { Showcase } from '../characters/Showcase';
-import { defaultCharacterFor } from '../characters/catalog';
+import { defaultCharacterFor, isKnownCharacter } from '../characters/catalog';
 import type { Entry } from '../library/wheels';
 
 export const WHEEL_CENTER = new THREE.Vector3(0, 3.9, 0);
@@ -28,6 +28,8 @@ export interface AppEvents {
   /** The winner's character finished loading and is on stage (or failed: null). */
   onCharacter?(info: { name: string; description: string } | null): void;
   onFps(fps: number): void;
+  /** The first frame has been drawn. */
+  onFirstFrame?(): void;
 }
 
 /**
@@ -40,7 +42,7 @@ export class App {
   readonly spin = new Spin();
   readonly bus = new AudioBus();
   readonly sfx = new Sfx(this.bus);
-  readonly music = new Music(this.bus);
+  readonly music = new Music(this.bus, MUSIC);
   readonly cam: CameraRig;
   readonly stunts: Stunts;
   private pointer: Pointer;
@@ -66,6 +68,7 @@ export class App {
   private last = performance.now();
   private winAt = -1;
   private fps = { acc: 0, frames: 0 };
+  private firstFrame = false;
 
   constructor(
     private canvas: HTMLCanvasElement,
@@ -90,7 +93,7 @@ export class App {
 
   /** The character an entry is shown as: its own, or a stable random built-in. */
   characterFor(entry: Entry) {
-    return entry.character ?? defaultCharacterFor(entry.name);
+    return entry.character && isKnownCharacter(entry.character) ? entry.character : defaultCharacterFor(entry.name);
   }
 
   /** Resolve with a small JPEG of the next rendered frame. */
@@ -193,7 +196,7 @@ export class App {
     this.cam.style = { ...DEFAULT_CAMERA, ...theme.camera };
     this.stunts.floating = !!theme.floating;
     this.sfx.tickStyle = theme.tick;
-    this.music.setTheme(theme.id, MUSIC[theme.id], theme.song);
+    this.music.setTheme(theme.id, theme.song);
     this.showcase.setStyle({
       spot: theme.character?.spot ?? [0, 0.22, 1.6],
       entrance: theme.character?.entrance ?? 'beam',
@@ -205,6 +208,7 @@ export class App {
     this.celebrations = theme.celebrations(world).map((c) => ({ name: c.name, play: c.setup(this.fx!) }));
     this.lastCelebration = -1;
 
+    performance.mark('hw:theme-built');
     // Compile new shaders up front rather than stuttering on the first win.
     // It's only an optimisation, so never let it block the scene for long.
     try {
@@ -299,6 +303,11 @@ export class App {
     this.stage.update(dt, speed, win);
     this.cam.update(dt, this.elapsed, speed, win, this.insets());
     this.stage.render();
+    if (!this.firstFrame) {
+      this.firstFrame = true;
+      performance.mark('hw:first-frame');
+      this.events.onFirstFrame?.();
+    }
     if (this.thumbRequests.length) this.grabThumbnail();
 
     this.fps.acc += dt;

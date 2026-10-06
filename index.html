@@ -16,6 +16,7 @@
   </head>
   <body>
     <canvas id="scene" aria-label="3D wheel of names. Press Space to spin."></canvas>
+    <div id="boot" class="boot" aria-hidden="true"><div class="boot-ring"></div><p>Warming up the wheel…</p></div>
 
     <header class="brand">
       <h1>Hyper<span>Wheel</span></h1>
@@ -108,14 +109,24 @@
         <div class="field audio-field">
           <span>This wheel's music</span>
           <ul id="spin-tracks" class="file-list"></ul>
-          <button id="add-spin" class="ghost-btn">⬆ Add spin music</button>
-          <span class="sub">Win sound</span>
-          <ul id="win-track" class="file-list"></ul>
-          <button id="add-win" class="ghost-btn">⬆ Set win sound</button>
+          <button id="add-spin" class="ghost-btn">⬆ Add spin songs</button>
+          <span class="sub">Win sounds <small class="muted">one is picked at random</small></span>
+          <ul id="win-tracks" class="file-list"></ul>
+          <button id="add-win" class="ghost-btn">⬆ Add win sounds</button>
           <label class="check"><input id="audio-enabled" type="checkbox" checked /> Use my audio instead of the scene's</label>
         </div>
         <label class="check"><input id="characters" type="checkbox" checked /> Show the winner's 3D character</label>
-        <label class="check"><input id="music" type="checkbox" checked /> Music</label>
+        <div class="field">
+          <span>Character packs <small class="muted">used for names without a character</small></span>
+          <div id="pack-list" class="pack-list"></div>
+        </div>
+        <div class="field">
+          <label class="check"><input id="music" type="checkbox" checked /> Music</label>
+          <div id="music-source" class="segmented" role="radiogroup" aria-label="Which scenes' songs play">
+            <button data-mix="scene" role="radio">This scene's songs</button>
+            <button data-mix="all" role="radio">Songs from all scenes</button>
+          </div>
+        </div>
         <label class="check"><input id="sound" type="checkbox" checked /> Sound effects</label>
         <label class="check"><input id="fx" type="checkbox" checked /> Post-processing (bloom, ripples, aberration)</label>
       </section>
@@ -144,6 +155,9 @@
 
     <dialog id="picker" class="modal wide">
       <header><h3 id="picker-title">Choose a character</h3><button class="icon-btn" data-close aria-label="Close">✕</button></header>
+      <div class="picker-tools">
+        <input id="picker-search" type="search" placeholder="Search characters…" autocomplete="off" aria-label="Search characters" />
+      </div>
       <div id="picker-grid" class="picker-grid"></div>
       <p class="hint-text">Upload rigged humanoid <b>.glb</b> or <b>.fbx</b> files (Mixamo rigs work great). Dance clips inside the file are used as celebrations, and shared with other Mixamo characters.</p>
     </dialog>

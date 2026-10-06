@@ -147,9 +147,13 @@ export class Performer {
     this.mixer = new THREE.AnimationMixer(c.object);
     this.captureRest();
 
-    const own = c.clips.filter((clip) => CELEBRATORY.test(clip.name));
+    const own = c.celebrations
+      ? c.clips.filter((clip) => c.celebrations!.includes(clip.name))
+      : c.clips.filter((clip) => CELEBRATORY.test(clip.name));
     const pool = [...own, ...sharedDances(c)];
-    const useClip = pool.length > 0 && (!c.rig.humanoid || own.length > 0 || Math.random() < 0.6);
+    // real dances win most of the time; simple emotes/jumps share the stage with procedural routines
+    const dancey = pool.some((clip) => /danc|salsa|flair|twerk|samba|step|groove|hip.?hop/i.test(clip.name));
+    const useClip = pool.length > 0 && (!c.rig.humanoid || Math.random() < (dancey ? 0.8 : 0.45));
     if (useClip) {
       const clip = pool[Math.floor(Math.random() * pool.length)];
       this.mixer.clipAction(clip).reset().fadeIn(0.2).play();

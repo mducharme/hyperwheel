@@ -1,9 +1,10 @@
 import { $, el, pickFiles, toast, wireDialog } from './dom';
 import type { Session } from './session';
 import type { App } from './App';
-import { BUILTINS, builtin, defaultCharacterFor } from '../characters/catalog';
-import { characterThumb } from '../characters/thumbnails';
-import { inspect } from '../characters/loader';
+import { BUILTINS, builtin, defaultCharacterFor, enabledPacks, isKnownCharacter } from '../characters/catalog';
+// portraits and model inspection pull in the model loaders, so load them on demand
+const thumbnails = () => import('../characters/thumbnails');
+const loader = () => import('../characters/loader');
 import { deleteAsset, listAssets, putAsset, type Asset } from '../library/assets';
 
 /** "alex-rigged.compressed.glb" → "Alex" */
@@ -32,6 +33,8 @@ export class EntriesView {
 
   init() {
     wireDialog(this.picker);
+    const search = $<HTMLInputElement>('picker-search');
+    search.addEventListener('input', () => this.filter(search.value));
     const views = $('entries-view');
     views.querySelectorAll<HTMLButtonElement>('button').forEach((b) =>
       b.addEventListener('click', () => {
@@ -65,7 +68,9 @@ export class EntriesView {
 
   private thumb(id: string, className = 'avatar') {
     const img = el('img', { className, alt: '', loading: 'lazy' });
-    void characterThumb(this.app.stage.renderer, id).then((url) => {
+    void thumbnails()
+      .then((t) => t.characterThumb(this.app.stage.renderer, id))
+      .then((url) => {
       if (url) img.src = url;
       else img.classList.add('empty');
     });
@@ -81,6 +86,8 @@ export class EntriesView {
     }
     this.list.replaceChildren(
       ...entries.map((entry, i) => {
+        // characters from retired packs fall back to automatic
+        if (entry.character && !isKnownCharacter(entry.character)) delete entry.character;
         const id = entry.character ?? defaultCharacterFor(entry.name);
         const row = el(
           'button',
@@ -121,13 +128,49 @@ export class EntriesView {
     const upload = el('button', { className: 'char-tile upload' }, el('span', { className: 'big' }, '⬆'), el('span', {}, 'Upload .glb / .fbx'));
     upload.addEventListener('click', () => void this.upload(this.target));
 
+    const header = (title: string, note?: string) =>
+      el('h4', { className: 'picker-section' }, title, note ? el('small', {}, note) : null);
+    const packs = enabledPacks();
     this.grid.replaceChildren(
       ...(entry && auto ? [tile(null, `Auto (${this.label(auto)})`, this.thumb(auto), { selected: !entry.character })] : []),
       upload,
+      ...(this.uploads.length ? [header('Your uploads')] : []),
       ...this.uploads.map((u) => tile(u.id, stripExt(u.name), this.thumb(u.id), { selected: entry?.character === u.id, removable: u })),
-      ...BUILTINS.map((b) => tile(b.id, b.name, this.thumb(b.id), { selected: entry?.character === b.id })),
+      ...packs.flatMap((p) => [
+        header(p.name, p.credit),
+        ...p.characters.map((b) => tile(b.id, b.name, this.thumb(b.id), { selected: entry?.character === b.id })),
+      ]),
+      header('More packs', packs.length < 3 ? 'Turn on more character packs in Settings' : undefined),
     );
-    if (!this.picker.open) this.picker.showModal();
+    const search = $<HTMLInputElement>('picker-search');
+    if (!this.picker.open) {
+      search.value = '';
+      this.picker.showModal();
+      search.focus();
+    } else this.filter(search.value);
+  }
+
+  /** Hide tiles (and empty section headers) that don't match the search. */
+  private filter(query: string) {
+    const q = query.trim().toLowerCase();
+    let header: HTMLElement | null = null;
+    let visible = 0;
+    const flush = () => {
+      if (header) header.hidden = visible === 0 && !!q;
+    };
+    for (const child of [...this.grid.children] as HTMLElement[]) {
+      if (child.classList.contains('picker-section')) {
+        flush();
+        header = child;
+        visible = 0;
+        continue;
+      }
+      const label = child.textContent?.toLowerCase() ?? '';
+      const keep = !q || label.includes(q) || child.classList.contains('upload');
+      child.hidden = !keep;
+      if (keep) visible++;
+    }
+    flush();
   }
 
   private choose(id: string | null) {
@@ -150,7 +193,7 @@ export class EntriesView {
       try {
         toast(`Loading ${file.name}…`);
         const asset = await putAsset(file, 'model', file.name);
-        const info = await inspect(asset.id);
+        const info = await (await loader()).inspect(asset.id);
         first ??= asset.id;
         const rig = info.family === 'mixamo' ? 'Mixamo rig' : info.family === 'kenney' ? 'blocky rig' : info.humanoid ? 'humanoid rig' : 'no humanoid rig found (it will bounce instead)';
         const dances = info.dances.length ? `, dances: ${info.dances.join(', ')}` : ', no dance clips (procedural moves)';
@@ -172,7 +215,8 @@ export class EntriesView {
 
   private async randomize() {
     await this.refreshUploads();
-    const pool = [...this.uploads.map((u) => u.id), ...BUILTINS.map((b) => b.id)];
+    const packChars = enabledPacks().flatMap((p) => p.characters.map((c) => c.id));
+    const pool = [...this.uploads.map((u) => u.id), ...(packChars.length ? packChars : BUILTINS.map((b) => b.id))];
     // deal from a shuffled deck so neighbours rarely repeat
     let deck: string[] = [];
     for (const e of this.session.doc.entries) {

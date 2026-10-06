@@ -5,21 +5,23 @@ import { db } from '../library/db';
 
 const SIZE = 256;
 const memory = new Map<string, Promise<string | null>>();
+/** Bump when portrait framing changes so cached renders are redone. */
+const VERSION = 2;
 
 /** Portrait for a character: the pack's preview for built-ins, a cached render for uploads. */
 export function characterThumb(renderer: THREE.WebGPURenderer, id: string): Promise<string | null> {
   const b = builtin(id);
-  if (b) return Promise.resolve(b.preview ?? null);
+  if (b?.preview) return Promise.resolve(b.preview);
   let p = memory.get(id);
   if (!p) {
     p = (async () => {
-      const cached = await db.get<string>('thumbs', id);
+      const cached = await db.get<string>('thumbs', `${VERSION}:${id}`);
       if (cached) return cached;
-      const url = await render(renderer, id).catch((err) => {
+      const url = await renderPortrait(renderer, id).catch((err) => {
         console.warn('thumbnail failed', err);
         return null;
       });
-      if (url) await db.put('thumbs', url, id);
+      if (url) await db.put('thumbs', url, `${VERSION}:${id}`);
       return url;
     })();
     memory.set(id, p);
@@ -27,7 +29,8 @@ export function characterThumb(renderer: THREE.WebGPURenderer, id: string): Prom
   return p;
 }
 
-async function render(renderer: THREE.WebGPURenderer, id: string) {
+/** Render a head-and-shoulders portrait of any character (also used to pre-render pack thumbnails). */
+export async function renderPortrait(renderer: THREE.WebGPURenderer, id: string) {
   const inst = await instantiate(id);
   const h = inst.height;
   const scene = new THREE.Scene();
@@ -40,18 +43,40 @@ async function render(renderer: THREE.WebGPURenderer, id: string) {
 
   // head-and-shoulders framing
   const cam = new THREE.PerspectiveCamera(28, 1, h * 0.01, h * 20);
-  cam.position.set(0, h * 0.72, h * 1.55);
-  cam.lookAt(0, h * 0.68, 0);
-
   const rt = new THREE.RenderTarget(SIZE, SIZE, { type: THREE.UnsignedByteType });
-  const prevColor = renderer.getClearColor(new THREE.Color());
-  const prevAlpha = renderer.getClearAlpha();
-  renderer.setClearColor(0x000000, 0);
-  renderer.setRenderTarget(rt);
-  renderer.render(scene, cam);
-  renderer.setRenderTarget(null);
-  renderer.setClearColor(prevColor, prevAlpha);
-  const px = (await renderer.readRenderTargetPixelsAsync(rt, 0, 0, SIZE, SIZE)) as Uint8Array;
+  const shoot = async () => {
+    const prevColor = renderer.getClearColor(new THREE.Color());
+    const prevAlpha = renderer.getClearAlpha();
+    renderer.setClearColor(0x000000, 0);
+    renderer.setRenderTarget(rt);
+    renderer.render(scene, cam);
+    renderer.setRenderTarget(null);
+    renderer.setClearColor(prevColor, prevAlpha);
+    return (await renderer.readRenderTargetPixelsAsync(rt, 0, 0, SIZE, SIZE)) as Uint8Array;
+  };
+  // Head-and-shoulders first, then step back gently until the character no
+  // longer fills the frame edge to edge (big chibi heads, object-shaped
+  // characters); full body only as a last resort.
+  const coverage = (px: Uint8Array) => {
+    let covered = 0;
+    for (let i = 3; i < px.length; i += 4) if (px[i] > 200) covered++;
+    return covered / (SIZE * SIZE);
+  };
+  let px: Uint8Array = new Uint8Array();
+  for (const pull of [1, 1.3, 1.65]) {
+    cam.position.set(0, h * (0.8 - (pull - 1) * 0.12), h * 1.05 * pull);
+    cam.lookAt(0, h * (0.76 - (pull - 1) * 0.12), 0);
+    px = await shoot();
+    if (coverage(px) <= 0.82) break;
+  }
+  if (coverage(px) > 0.82) {
+    const box = new THREE.Box3().setFromObject(inst.object, true);
+    const size = box.getSize(new THREE.Vector3());
+    const fit = (Math.max(size.y, size.x * 0.8) * 0.62) / Math.tan(THREE.MathUtils.degToRad(14));
+    cam.position.set(0, size.y * 0.55, box.max.z + fit * 0.8);
+    cam.lookAt(0, size.y * 0.5, 0);
+    px = await shoot();
+  }
   rt.dispose();
 
   const canvas = document.createElement('canvas');

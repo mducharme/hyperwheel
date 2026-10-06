@@ -6,8 +6,8 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "music": "node scripts/generate-music.mjs",
-    "music:dry": "node scripts/generate-music.mjs --dry-run"
+    "music": "node --env-file-if-exists=.env scripts/generate-music.mjs",
+    "music:dry": "node --env-file-if-exists=.env scripts/generate-music.mjs --dry-run"
   },
   "type": "module",
   "dependencies": {
