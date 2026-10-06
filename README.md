@@ -17,6 +17,7 @@ npm run build        # typecheck + production bundle in dist/
 | 🌆 | Neon Drive | striped retro sun, wireframe mountains, mirror grid floor | Laser Cannons · Fireworks Finale · Grid Quake · Outrun Flip |
 | 🍭 | Sugar Rush | cotton-candy clouds, giant lollipops, gumdrops, candy-cane stand | Sprinkle Storm · Gumball Cannon · Jelly Wobble · Sugar Flip |
 | 🐙 | Deep Sea | Worley-noise caustics, swaying kelp, god rays, marine snow, fog | Bubble Geyser · Fish Tornado · Jellyfish Bloom · Treasure Burst |
+| 🎃 | Haunted | moonlit graveyard, rolling ground fog, flickering jack-o'-lanterns, dead trees, drifting wisps | Bat Swarm · Ghost Parade · Trick or Treat · Thunderstrike |
 | 🪐 | Event Horizon | black hole with lensed accretion disk, ringed planet, GPU asteroid belt, zero-g wheel | Supernova · Warp Speed · Meteor Shower · Zero-G Tumble |
 
 ## Wheels, characters and your own audio

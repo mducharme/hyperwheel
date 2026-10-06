@@ -66,5 +66,22 @@
       {"file": "win-4.mp3", "seconds": 5, "prompt": "Short space-disco celebration sting, funky string stab, octave bass slide and sparkling chimes, ending on a glossy chord, instrumental only"},
       {"file": "win-5.mp3", "seconds": 5, "prompt": "Short playful future-bass victory sting at 150 BPM, punchy kick and claps from the first beat, wobbly detuned synth chord stabs, sparkling bell arpeggio, cute pitched synth chops with no vocals, ending on a bright wide chord hit and stop, bouncy and joyful, instrumental only"}
     ]
+  },
+  "haunted": {
+    "spin": [
+      {"file": "spin-1.mp3", "seconds": 20, "prompt": "Spooky harpsichord waltz in 3/4 at 150 BPM, plucky pizzicato strings, creaky pipe organ chords, mischievous haunted-mansion fun, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-2.mp3", "seconds": 20, "prompt": "Goofy graveyard rockabilly at 160 BPM, slapback twangy guitar, walking upright bass, brushed snare, eerie whistling theremin-like melody, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-3.mp3", "seconds": 20, "prompt": "Tense horror-movie suspense pulse at 100 BPM, ticking clock, staccato low string ostinato, deep drones and creaking textures, something lurking, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-4.mp3", "seconds": 20, "prompt": "Playful Halloween swing at 140 BPM, muted trumpet, bouncy tuba bass, rattling xylophone runs, trick-or-treat mischief, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-5.mp3", "seconds": 20, "prompt": "Dark synthwave Halloween groove at 110 BPM, pulsing analog bass, eerie minor-key synth arpeggio, gated drums, midnight chase, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-6.mp3", "seconds": 20, "prompt": "Witchy folk dance at 130 BPM, frantic fiddle over a droning hurdy-gurdy-like bass, stomping frame drum, bonfire in a moonlit forest, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"}
+    ],
+    "win": [
+      {"file": "win-1.mp3", "seconds": 5, "prompt": "Short spooky victory sting, creepy pipe organ flourish and a wicked brass slide resolving to a triumphant major chord, playful not scary, instrumental only"},
+      {"file": "win-2.mp3", "seconds": 4, "prompt": "Short haunted music-box jingle that speeds up into a sparkling glockenspiel flourish and a bright final chord, playful not scary, instrumental only"},
+      {"file": "win-3.mp3", "seconds": 5, "prompt": "Short goofy graveyard rockabilly victory riff at 160 BPM, twangy guitar run, slap bass and a cymbal crash, ending on a cheeky chord and stop, instrumental only"},
+      {"file": "win-4.mp3", "seconds": 5, "prompt": "Short gothic celebration sting, booming timpani hit like thunder, swirling choir pad and a big triumphant major chord, instrumental only"},
+      {"file": "win-5.mp3", "seconds": 5, "prompt": "Short trick-or-treat party jingle at 140 BPM, bouncy tuba and xylophone, handclaps from the first beat, ending on a happy chord with a spooky theremin-like swoop, instrumental only"}
+    ]
   }
 }

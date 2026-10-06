@@ -4,6 +4,7 @@ import { meta as synthwave } from './synthwave/meta';
 import { meta as candy } from './candy/meta';
 import { meta as abyss } from './abyss/meta';
 import { meta as cosmos } from './cosmos/meta';
+import { meta as haunted } from './haunted/meta';
 import music from './music.json';
 
 export interface ThemeEntry extends ThemeMeta {
@@ -28,6 +29,7 @@ export const THEMES: ThemeEntry[] = [
   { ...candy, load: once(() => import('./candy').then((m) => m.candy)) },
   { ...abyss, load: once(() => import('./abyss').then((m) => m.abyss)) },
   { ...cosmos, load: once(() => import('./cosmos').then((m) => m.cosmos)) },
+  { ...haunted, load: once(() => import('./haunted').then((m) => m.haunted)) },
 ];
 
 export const getTheme = (id: string): ThemeEntry => THEMES.find((t) => t.id === id) ?? THEMES[0];

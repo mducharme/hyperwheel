@@ -26,6 +26,8 @@ export const SCALES = {
   pentatonic: [0, 2, 4, 7, 9],
   minorPent: [0, 3, 5, 7, 10],
   lydian: [0, 2, 4, 6, 7, 9, 11],
+  /** Phrygian dominant: the classic spooky-carnival sound. */
+  spooky: [0, 1, 4, 5, 7, 8, 10],
 };
 
 const STEPS_PER_BAR = 16;
