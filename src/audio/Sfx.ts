@@ -1,6 +1,6 @@
 import type { AudioBus } from './AudioBus';
 
-export type TickStyle = 'click' | 'pop' | 'bubble' | 'blip' | 'knock' | 'jingle';
+export type TickStyle = 'click' | 'pop' | 'bubble' | 'blip' | 'knock' | 'jingle' | 'marimba';
 
 /** Synthesized sound effects — no asset files. Each theme picks a tick flavour. */
 export class Sfx {
@@ -69,6 +69,14 @@ export class Sfx {
       case 'blip':
         this.osc(ctx, 'square', 1800 * jitter, 1200, t, 0.03, this.env(ctx, t, 0.08 * vol, 0.002, 0.035));
         break;
+      case 'marimba': {
+        // each peg plays a random note of a major pentatonic scale
+        const notes = [523.25, 587.33, 659.25, 783.99, 880, 1046.5];
+        const f = notes[Math.floor(Math.random() * notes.length)];
+        this.osc(ctx, 'sine', f, f, t, 0.18, this.env(ctx, t, 0.22 * vol, 0.002, 0.18));
+        this.osc(ctx, 'triangle', f * 4, f * 4, t, 0.04, this.env(ctx, t, 0.03 * vol, 0.001, 0.04));
+        break;
+      }
       case 'jingle':
         // a little sleigh bell: two bright partials and a shimmer of noise
         this.osc(ctx, 'sine', 2600 * jitter, 2500 * jitter, t, 0.12, this.env(ctx, t, 0.12 * vol, 0.002, 0.12));

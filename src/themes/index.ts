@@ -6,6 +6,7 @@ import { meta as abyss } from './abyss/meta';
 import { meta as cosmos } from './cosmos/meta';
 import { meta as haunted } from './haunted/meta';
 import { meta as winter } from './winter/meta';
+import { meta as tiki } from './tiki/meta';
 import music from './music.json';
 
 export interface ThemeEntry extends ThemeMeta {
@@ -32,6 +33,7 @@ export const THEMES: ThemeEntry[] = [
   { ...cosmos, load: once(() => import('./cosmos').then((m) => m.cosmos)) },
   { ...haunted, load: once(() => import('./haunted').then((m) => m.haunted)) },
   { ...winter, load: once(() => import('./winter').then((m) => m.winter)) },
+  { ...tiki, load: once(() => import('./tiki').then((m) => m.tiki)) },
 ];
 
 export const getTheme = (id: string): ThemeEntry => THEMES.find((t) => t.id === id) ?? THEMES[0];
