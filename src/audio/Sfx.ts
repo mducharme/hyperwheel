@@ -1,6 +1,6 @@
 import type { AudioBus } from './AudioBus';
 
-export type TickStyle = 'click' | 'pop' | 'bubble' | 'blip' | 'knock';
+export type TickStyle = 'click' | 'pop' | 'bubble' | 'blip' | 'knock' | 'jingle';
 
 /** Synthesized sound effects — no asset files. Each theme picks a tick flavour. */
 export class Sfx {
@@ -68,6 +68,12 @@ export class Sfx {
         break;
       case 'blip':
         this.osc(ctx, 'square', 1800 * jitter, 1200, t, 0.03, this.env(ctx, t, 0.08 * vol, 0.002, 0.035));
+        break;
+      case 'jingle':
+        // a little sleigh bell: two bright partials and a shimmer of noise
+        this.osc(ctx, 'sine', 2600 * jitter, 2500 * jitter, t, 0.12, this.env(ctx, t, 0.12 * vol, 0.002, 0.12));
+        this.osc(ctx, 'sine', 3900 * jitter, 3800 * jitter, t, 0.08, this.env(ctx, t, 0.06 * vol, 0.002, 0.08));
+        this.noise(ctx, t, 0.05, 'highpass', 6000, 1, this.env(ctx, t, 0.08 * vol, 0.001, 0.05));
         break;
       case 'knock':
         // hollow wooden knock: a short pitched thunk plus a dull tap

@@ -83,5 +83,22 @@
       {"file": "win-4.mp3", "seconds": 5, "prompt": "Short gothic celebration sting, booming timpani hit like thunder, swirling choir pad and a big triumphant major chord, instrumental only"},
       {"file": "win-5.mp3", "seconds": 5, "prompt": "Short trick-or-treat party jingle at 140 BPM, bouncy tuba and xylophone, handclaps from the first beat, ending on a happy chord with a spooky theremin-like swoop, instrumental only"}
     ]
+  },
+  "winter": {
+    "spin": [
+      {"file": "spin-1.mp3", "seconds": 20, "prompt": "Jazzy sleigh-bell swing at 150 BPM, walking upright bass, brushed drums, bright muted trumpet and celesta melody, cozy snowy-evening fun, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-2.mp3", "seconds": 20, "prompt": "Energetic ice-rink eurodance at 130 BPM, bouncy synth bass, sparkling bell arpeggios, four-on-the-floor kick, skating-under-the-lights excitement, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-3.mp3", "seconds": 20, "prompt": "Sweeping orchestral winter waltz in 3/4 at 160 BPM, pizzicato strings, glockenspiel sparkle, warm horns, snowflakes swirling in a ballroom, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-4.mp3", "seconds": 20, "prompt": "Cozy lo-fi winter groove at 90 BPM, warm electric piano, soft vinyl texture, gentle sleigh-bell shaker, crackling-fireplace calm with a hint of suspense, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-5.mp3", "seconds": 20, "prompt": "Lively Celtic winter jig in 6/8 at 120 BPM, tin whistle and fiddle melody, bodhran-style frame drum, plucked guitar, frosty village dance, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-6.mp3", "seconds": 20, "prompt": "Upbeat frosty chiptune at 145 BPM, crystalline square-wave melody, icy arpeggios, punchy 8-bit drums, snowboarding video-game rush, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"}
+    ],
+    "win": [
+      {"file": "win-1.mp3", "seconds": 5, "prompt": "Short sparkling winter victory sting, sleigh bells and glockenspiel flourish rising into a warm brass major chord, joyful, instrumental only"},
+      {"file": "win-2.mp3", "seconds": 4, "prompt": "Short frosty chiptune high-score jingle, quick icy square-wave arpeggio up to a bright chord with a bell chime, instrumental only"},
+      {"file": "win-3.mp3", "seconds": 5, "prompt": "Short jazzy big-band winter celebration hit at 150 BPM, swinging brass stab, walking bass run and a cymbal crash, ending on a bright chord and stop, instrumental only"},
+      {"file": "win-4.mp3", "seconds": 5, "prompt": "Short magical orchestral snowfall sting, harp glissando and celesta sparkle swelling into a lush triumphant major chord, instrumental only"},
+      {"file": "win-5.mp3", "seconds": 5, "prompt": "Short upbeat eurodance victory sting at 130 BPM, pumping kick from the first beat, sparkling bell arpeggio and a big synth chord hit and stop, instrumental only"}
+    ]
   }
 }
