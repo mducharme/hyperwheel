@@ -21,6 +21,8 @@ export class UI {
   private rebuildTimer = 0;
   private revealTimer = 0;
   private opening: Promise<void> = Promise.resolve();
+  /** Scene chosen at spin start for the auto-switch after this result. */
+  private upcoming: ThemeEntry | null = null;
 
   constructor(private app: App) {}
 
@@ -111,6 +113,14 @@ export class UI {
   onSpinStart() {
     $('hint').classList.add('gone');
     this.spinBtn.disabled = true;
+    // the next scene is decided now and built while the wheel turns
+    this.upcoming = this.session.doc.settings.autoSwitch ? this.pickNextTheme() : null;
+    if (this.upcoming) {
+      const next = this.upcoming;
+      void next.load().then((theme) => {
+        if (this.upcoming === next) this.app.prepareTheme(theme);
+      });
+    }
   }
 
   onResult(name: string, index: number, celebration: string) {
@@ -169,7 +179,8 @@ export class UI {
     if (this.removeEl.checked && this.pending) this.removeEntry(this.pending);
     this.pending = null;
     // stay locked while the next scene loads so a stray Space can't spin mid-switch
-    if (this.session.doc.settings.autoSwitch) await this.selectTheme(this.pickNextTheme());
+    if (this.session.doc.settings.autoSwitch) await this.selectTheme(this.upcoming ?? this.pickNextTheme());
+    this.upcoming = null;
     this.app.locked = false;
     this.spinBtn.disabled = this.app.names.length === 0;
     if (spinAgain) {

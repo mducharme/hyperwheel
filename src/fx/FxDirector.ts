@@ -35,6 +35,12 @@ export class FxDirector {
     this.center = center.clone();
   }
 
+  /** Move every effect into another scene (a theme staged off-screen going live). */
+  moveTo(scene: THREE.Scene) {
+    for (const item of this.items) scene.add(item.object);
+    this.scene = scene;
+  }
+
   add<T extends FxItem>(item: T): T {
     this.items.push(item);
     this.scene.add(item.object);

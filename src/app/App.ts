@@ -21,6 +21,15 @@ import type { Entry } from '../library/wheels';
 export const WHEEL_CENTER = new THREE.Vector3(0, 3.9, 0);
 const DEFAULT_CAMERA = { height: 0.9, look: 0.15, frame: 8.6 };
 
+interface StagedTheme {
+  theme: Theme<any>;
+  /** Off-screen scene the world was built in (holds its background, fog, environment). */
+  staging: THREE.Scene;
+  world: ThemeScene;
+  fx: FxDirector;
+  celebrations: { name: string; play: () => void }[];
+}
+
 export interface AppEvents {
   onSpinStart(): void;
   /** Fired when the wheel stops. `celebration` is the name of the animation playing. */
@@ -52,6 +61,12 @@ export class App {
   private world: ThemeScene | null = null;
   private fx: FxDirector | null = null;
   private celebrations: { name: string; play: () => void }[] = [];
+  /** A scene being prepared in the background. */
+  private staged: { id: string; promise: Promise<StagedTheme> } | null = null;
+  private themeRequest = '';
+  private pendingSwap: { staged: StagedTheme; done: () => void } | null = null;
+  private cover: HTMLCanvasElement | null = null;
+  private coverFrames = -1;
   private lastCelebration = -1;
 
   entries: Entry[] = [];
@@ -165,32 +180,143 @@ export class App {
 
   // ------------------------------------------------------------------ themes
 
+  /**
+   * Switch scenes. The new world is built and its shaders compiled off-screen
+   * first (see `stageTheme`), then swapped in within a single frame — so the
+   * old scene stays on screen until the new one is ready (no black frames).
+   */
   async setTheme(theme: Theme<any>) {
-    const first = !this.theme;
-    this.theme = theme;
-    const { scene, renderer, camera } = this.stage;
-
-    // tear down the previous world and its effects
-    this.fx?.dispose();
-    if (this.world) {
-      scene.remove(this.world.group);
-      this.world.dispose?.();
-      disposeDeep(this.world.group);
+    const pending = this.staged;
+    this.staged = null;
+    let staged: Promise<StagedTheme>;
+    if (pending?.id === theme.id) staged = pending.promise;
+    else {
+      void pending?.promise.then((s) => this.discard(s)); // prepared a different scene: free it
+      staged = this.stageTheme(theme);
     }
-    scene.backgroundNode = null;
-    scene.fogNode = null;
-    this.stunts.clear();
+    // quick successive switches: only the latest request may go live
+    const request = (this.themeRequest = theme.id);
+    const s = await staged;
+    if (request !== this.themeRequest) return this.discard(s);
+    await this.swap(s);
+  }
 
+  /**
+   * Go live with a staged scene. The first frame of a new scene still builds
+   * its render passes (mirror floors, post effects), which can take a few
+   * hundred ms — so the swap happens under a snapshot of the last frame that
+   * then cross-fades away, hiding the hitch.
+   */
+  private swap(s: StagedTheme): Promise<void> {
+    if (!this.theme) {
+      this.activate(s);
+      return Promise.resolve();
+    }
+    this.pendingSwap?.done(); // superseded
+    return new Promise((done) => (this.pendingSwap = { staged: s, done }));
+  }
+
+  /** Runs right after a frame was drawn: cover the canvas with that frame, then swap underneath. */
+  private runPendingSwap() {
+    const { staged, done } = this.pendingSwap!;
+    this.pendingSwap = null;
+    const cover = (this.cover ??= Object.assign(document.createElement('canvas'), { className: 'scene-cover' }));
+    cover.width = this.canvas.width;
+    cover.height = this.canvas.height;
+    cover.style.transition = 'none';
+    cover.style.opacity = '1';
+    try {
+      cover.getContext('2d')!.drawImage(this.canvas, 0, 0);
+      this.canvas.after(cover);
+      this.coverFrames = 0;
+    } catch {
+      /* can't snapshot: plain cut */
+    }
+    this.activate(staged);
+    done();
+  }
+
+  /** Fade the snapshot out once the (possibly slow) first frame of the new scene is done. */
+  private fadeCover() {
+    const cover = this.cover;
+    if (!cover?.isConnected || this.coverFrames < 0) return;
+    if (++this.coverFrames < 2) return;
+    this.coverFrames = -1;
+    cover.style.transition = 'opacity 0.5s ease';
+    cover.style.opacity = '0';
+    cover.addEventListener('transitionend', () => cover.remove(), { once: true });
+  }
+
+  /**
+   * Start preparing a scene in the background (e.g. the next one while the
+   * wheel spins) so switching to it later is instant.
+   */
+  prepareTheme(theme: Theme<any>) {
+    if (this.staged?.id === theme.id || this.theme?.id === theme.id) return;
+    this.staged?.promise.then((s) => this.discard(s));
+    this.staged = { id: theme.id, promise: this.stageTheme(theme) };
+  }
+
+  private async stageTheme(theme: Theme<any>): Promise<StagedTheme> {
+    const { renderer, camera } = this.stage;
     try {
       const w = theme.wheel;
       await document.fonts.load(`${w.fontWeight ?? 700} 64px ${w.font}`);
     } catch {
       /* fall back to the default font */
     }
+    // a private scene: themes set background/fog/environment on it, not on the live one
+    const staging = new THREE.Scene();
+    staging.environment = this.stage.scene.environment;
+    const world = theme.createScene({ scene: staging, renderer, camera, center: WHEEL_CENTER });
+    staging.add(world.group);
+    const fx = new FxDirector(staging, this.stage, this.cam, this.stunts, this.sfx, WHEEL_CENTER);
+    const celebrations = theme.celebrations(world).map((c) => ({ name: c.name, play: c.setup(fx) }));
 
-    const world = theme.createScene({ scene, renderer, camera, center: WHEEL_CENTER });
-    this.world = world;
-    scene.add(world.group);
+    // Compile the new shaders without blocking rendering. It's only a warm-up,
+    // so never wait on it for long.
+    try {
+      await Promise.race([this.stage.compileForPass(staging), new Promise((r) => setTimeout(r, 4000))]);
+    } catch (err) {
+      console.warn('precompile failed', err);
+    }
+    return { theme, staging, world, fx, celebrations };
+  }
+
+  /** Throw away a staged scene that won't be shown. */
+  private discard(s: StagedTheme) {
+    if (s.world === this.world) return;
+    s.fx.dispose();
+    s.world.dispose?.();
+    disposeDeep(s.world.group);
+  }
+
+  /** Swap a staged scene in — synchronous, so it happens between two frames. */
+  private activate(s: StagedTheme) {
+    const first = !this.theme;
+    const { scene } = this.stage;
+    const theme = s.theme;
+
+    this.fx?.dispose();
+    if (this.world) {
+      scene.remove(this.world.group);
+      this.world.dispose?.();
+      disposeDeep(this.world.group);
+    }
+    this.stunts.clear();
+
+    this.theme = theme;
+    this.world = s.world;
+    scene.backgroundNode = s.staging.backgroundNode;
+    scene.fogNode = s.staging.fogNode;
+    scene.environmentIntensity = s.staging.environmentIntensity;
+    scene.add(s.world.group);
+    s.fx.moveTo(scene);
+    s.fx.time = this.elapsed;
+    this.fx = s.fx;
+    this.celebrations = s.celebrations;
+    this.lastCelebration = -1;
+
     this.wheel.setStyle(theme.wheel);
     this.stage.setPost(theme.post);
     this.cam.style = { ...DEFAULT_CAMERA, ...theme.camera };
@@ -202,24 +328,9 @@ export class App {
       entrance: theme.character?.entrance ?? 'beam',
       accent: theme.ui.accent,
     });
-
-    this.fx = new FxDirector(scene, this.stage, this.cam, this.stunts, this.sfx, WHEEL_CENTER);
-    this.fx.time = this.elapsed;
-    this.celebrations = theme.celebrations(world).map((c) => ({ name: c.name, play: c.setup(this.fx!) }));
-    this.lastCelebration = -1;
-
     performance.mark('hw:theme-built');
-    // Compile new shaders up front rather than stuttering on the first win.
-    // It's only an optimisation, so never let it block the scene for long.
-    try {
-      await Promise.race([renderer.compileAsync(scene, camera), new Promise((r) => setTimeout(r, 2500))]);
-    } catch (err) {
-      console.warn('precompile failed', err);
-    }
-    if (!first) {
-      this.stage.triggerFlash(theme.ui.accent, 0.6, 0.6);
-      this.stage.triggerRipple(WHEEL_CENTER, 1.2, 1.2);
-    }
+
+    if (!first) this.stage.triggerRipple(WHEEL_CENTER, 1.2, 1.2);
   }
 
   /** Play a specific celebration by index (or a random one). Returns its name. */
@@ -303,6 +414,8 @@ export class App {
     this.stage.update(dt, speed, win);
     this.cam.update(dt, this.elapsed, speed, win, this.insets());
     this.stage.render();
+    if (this.pendingSwap) this.runPendingSwap();
+    else this.fadeCover();
     if (!this.firstFrame) {
       this.firstFrame = true;
       performance.mark('hw:first-frame');

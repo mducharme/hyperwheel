@@ -47,6 +47,7 @@ export class Stage {
   private readonly uVignette = uniform(0.55);
 
   private pipeline!: THREE.RenderPipeline;
+  private scenePass: any;
   private bloomNode: any;
   private fxNode: any;
   private plainNode: any;
@@ -76,7 +77,7 @@ export class Stage {
 
   private buildPipeline() {
     this.pipeline = new THREE.RenderPipeline(this.renderer);
-    const scenePass = pass(this.scene, this.camera);
+    const scenePass = (this.scenePass = pass(this.scene, this.camera));
     const color = scenePass.getTextureNode('output');
 
     // Shockwave ripple: a travelling sine ring that bends screen UVs
@@ -99,6 +100,21 @@ export class Stage {
     this.fxNode = vec4(max(flashed, vec3(0)), 1);
     this.plainNode = scenePass;
     this.pipeline.outputNode = this.fxNode;
+  }
+
+  /**
+   * Compile a scene's shaders for the render target the main pass draws into
+   * (a half-float target, not the canvas), so the compiled pipelines are the
+   * ones the live frame will actually use.
+   */
+  compileForPass(scene: THREE.Scene): Promise<void> {
+    const r = this.renderer;
+    const previous = r.getRenderTarget();
+    r.setRenderTarget(this.scenePass.renderTarget);
+    // compileAsync captures the render target synchronously, so restore it at once
+    const job = r.compileAsync(scene, this.camera);
+    r.setRenderTarget(previous);
+    return job;
   }
 
   setPost(style: PostStyle) {
