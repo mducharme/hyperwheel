@@ -117,5 +117,22 @@
       {"file": "win-4.mp3", "seconds": 5, "prompt": "Short triumphant island drum fanfare, rolling log drums and a bold horn-like brass call ending on a big major chord, instrumental only"},
       {"file": "win-5.mp3", "seconds": 5, "prompt": "Short exotica lounge ta-da, vibraphone glissando, bongo roll and a lush sparkling major chord, instrumental only"}
     ]
+  },
+  "gameshow": {
+    "spin": [
+      {"file": "spin-1.mp3", "seconds": 20, "prompt": "Brassy 1970s TV game-show funk at 118 BPM, punchy horn section, wah guitar, slap bass, tight drums, big-studio excitement, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-2.mp3", "seconds": 20, "prompt": "Bright big-band quiz-show swing at 160 BPM, sax section riffs, trumpet shakes, walking bass, ride cymbal, cheerful contestant energy, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-3.mp3", "seconds": 20, "prompt": "Suspenseful countdown thinking music at 100 BPM, ticking hi-hat, plucked strings and pizzicato bass, light playful tension while the clock runs, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-4.mp3", "seconds": 20, "prompt": "Glitzy disco game-show groove at 124 BPM, four-on-the-floor kick, string stabs, funky octave bass, sparkling glockenspiel, bright studio lights, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-5.mp3", "seconds": 20, "prompt": "Modern pop-EDM TV competition anthem at 128 BPM, pumping synth bass, big claps, soaring synth lead, primetime drama, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-6.mp3", "seconds": 20, "prompt": "Jazzy lounge game-show vamp at 120 BPM, Hammond-style organ, brushed snare, upright bass, vibraphone hits, smooth host-banter vibe, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"}
+    ],
+    "win": [
+      {"file": "win-1.mp3", "seconds": 4, "prompt": "Short classic TV game-show winner fanfare, bright brass hit, bell ding and a cymbal crash ending on a big major chord, instrumental only"},
+      {"file": "win-2.mp3", "seconds": 5, "prompt": "Short big-band jackpot sting at 160 BPM, rising sax and trumpet run into a huge brass chord and stop, instrumental only"},
+      {"file": "win-3.mp3", "seconds": 4, "prompt": "Short disco celebration hit, string glissando up, four-on-the-floor kick and a glossy major chord stab and stop, instrumental only"},
+      {"file": "win-4.mp3", "seconds": 5, "prompt": "Short primetime pop-EDM victory sting at 128 BPM, snare roll from the first beat into a massive synth chord drop and stop, instrumental only"},
+      {"file": "win-5.mp3", "seconds": 5, "prompt": "Short cheerful prize-reveal jingle, xylophone and celesta flourish, organ swell and a bright final chord, instrumental only"}
+    ]
   }
 }

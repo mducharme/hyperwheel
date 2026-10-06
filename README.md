@@ -20,6 +20,7 @@ npm run build        # typecheck + production bundle in dist/
 | 🎃 | Haunted | moonlit graveyard, rolling ground fog, flickering jack-o'-lanterns, dead trees, drifting wisps | Bat Swarm · Ghost Parade · Trick or Treat · Thunderstrike |
 | ❄️ | Winter | aurora curtains, snow-dusted pines with fairy lights, snowmen, glinting snow and drifts | Snowball Fight · Present Drop · Blizzard · Aurora Surge |
 | 🌴 | Tiki Island | sunset ocean with a sun-glitter path and shoreline foam, palms, carved tiki totems, bamboo torches, a smoking volcano | Coconut Cannon · Flower Lei Shower · Fire Dance · Volcano Eruption |
+| 🎙️ | Prime Time | glossy LED stage floor, giant LED wall with a chasing marquee, sweeping spotlights, velvet curtains, a live studio audience | Ticker-Tape Finale · Confetti Cannons · Jackpot · Standing Ovation |
 | 🪐 | Event Horizon | black hole with lensed accretion disk, ringed planet, GPU asteroid belt, zero-g wheel | Supernova · Warp Speed · Meteor Shower · Zero-G Tumble |
 
 ## Wheels, characters and your own audio

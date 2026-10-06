@@ -7,6 +7,7 @@ import { meta as cosmos } from './cosmos/meta';
 import { meta as haunted } from './haunted/meta';
 import { meta as winter } from './winter/meta';
 import { meta as tiki } from './tiki/meta';
+import { meta as gameshow } from './gameshow/meta';
 import music from './music.json';
 
 export interface ThemeEntry extends ThemeMeta {
@@ -34,6 +35,7 @@ export const THEMES: ThemeEntry[] = [
   { ...haunted, load: once(() => import('./haunted').then((m) => m.haunted)) },
   { ...winter, load: once(() => import('./winter').then((m) => m.winter)) },
   { ...tiki, load: once(() => import('./tiki').then((m) => m.tiki)) },
+  { ...gameshow, load: once(() => import('./gameshow').then((m) => m.gameshow)) },
 ];
 
 export const getTheme = (id: string): ThemeEntry => THEMES.find((t) => t.id === id) ?? THEMES[0];

@@ -122,6 +122,22 @@ export class Sfx {
     this.osc(ctx, 'sine', 500 * pitch, 1600 * pitch, t, 0.06, this.env(ctx, t, 0.3, 0.003, 0.07));
   }
 
+  /** A studio audience applauding: dozens of randomised hand-claps over a crowd swell. */
+  applause(duration = 2.6, delay = 0) {
+    const ctx = this.live;
+    if (!ctx) return;
+    const t0 = ctx.currentTime + delay;
+    const swell = this.env(ctx, t0, 0.12, 0.25, duration);
+    this.noise(ctx, t0, duration + 0.3, 'bandpass', 1400, 0.6, swell);
+    const claps = Math.round(duration * 38);
+    for (let i = 0; i < claps; i++) {
+      // denser at the start, thinning out toward the end
+      const t = t0 + Math.pow(Math.random(), 1.4) * duration;
+      const f = this.noise(ctx, t, 0.03, 'bandpass', 1200 + Math.random() * 1600, 2.5, this.env(ctx, t, 0.07 + Math.random() * 0.06, 0.001, 0.035));
+      f.Q.value = 2 + Math.random() * 2;
+    }
+  }
+
   /** Sparkly major arpeggio — the fallback winner sting when a theme has no win track. */
   fanfare() {
     const ctx = this.live;
