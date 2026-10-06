@@ -1,0 +1,106 @@
+{
+  "synthwave": {
+    "spin": [
+      {
+        "file": "spin-1.mp3",
+        "seconds": 30,
+        "prompt": "Driving retro synthwave instrumental at 118 BPM, pulsing arpeggiated analog bass, gated reverb drums, bright saw-wave lead hook, 1980s night-drive energy, builds tension, loop-friendly with no intro or ending, instrumental only"
+      },
+      {
+        "file": "spin-2.mp3",
+        "seconds": 30,
+        "prompt": "Upbeat outrun electro instrumental at 128 BPM, punchy drum machine, sparkling synth arpeggios, neon arcade game-show excitement, steady build, loop-friendly with no intro or fade, instrumental only"
+      },
+      {
+        "file": "spin-3.mp3",
+        "seconds": 30,
+        "prompt": "Darkwave synth instrumental at 110 BPM, heavy sidechained bass, ticking hi-hats like a countdown, suspenseful minor-key lead, cinematic retro-futuristic drama, loop-friendly, instrumental only"
+      }
+    ],
+    "win": [
+      {
+        "file": "win-1.mp3",
+        "seconds": 5,
+        "prompt": "Short triumphant synthwave victory sting, rising saw-lead fanfare into a big major chord with shimmering reverb, retro arcade winner jingle, instrumental only"
+      }
+    ]
+  },
+  "candy": {
+    "spin": [
+      {
+        "file": "spin-1.mp3",
+        "seconds": 30,
+        "prompt": "Bouncy playful bubblegum pop instrumental at 132 BPM, plucky marimba and glockenspiel melody, ukulele strums, handclaps, cartoon sweet-shop happiness, loop-friendly with no intro or ending, instrumental only"
+      },
+      {
+        "file": "spin-2.mp3",
+        "seconds": 30,
+        "prompt": "Silly kawaii chiptune pop instrumental at 140 BPM, squeaky square-wave lead, toy piano, boing sounds, sugary game-show excitement, loop-friendly, instrumental only"
+      },
+      {
+        "file": "spin-3.mp3",
+        "seconds": 30,
+        "prompt": "Whimsical carnival waltz-pop instrumental, calliope organ and pizzicato strings, cheeky bassoon, candy factory mischief, gradually speeding up feel, loop-friendly, instrumental only"
+      }
+    ],
+    "win": [
+      {
+        "file": "win-1.mp3",
+        "seconds": 5,
+        "prompt": "Short sugary victory jingle, glockenspiel and toy piano flourish, party horn, cheerful major chord ending with sparkle, instrumental only"
+      }
+    ]
+  },
+  "abyss": {
+    "spin": [
+      {
+        "file": "spin-1.mp3",
+        "seconds": 30,
+        "prompt": "Mysterious underwater ambient-electronic instrumental at 100 BPM, bubbly filtered synth plucks, deep sub bass, muffled drums, shimmering kalimba melody, bioluminescent deep-sea suspense, loop-friendly, instrumental only"
+      },
+      {
+        "file": "spin-2.mp3",
+        "seconds": 30,
+        "prompt": "Playful aquatic adventure instrumental at 115 BPM, steel drums and marimba, squelchy synth bass, bubbling percussion, treasure-hunt excitement, loop-friendly with no intro or ending, instrumental only"
+      },
+      {
+        "file": "spin-3.mp3",
+        "seconds": 30,
+        "prompt": "Tense deep-ocean cinematic instrumental, low cello ostinato, sonar ping rhythm, swelling choir pads, slow-building suspense like something huge approaching, loop-friendly, instrumental only"
+      }
+    ],
+    "win": [
+      {
+        "file": "win-1.mp3",
+        "seconds": 5,
+        "prompt": "Short magical underwater victory sting, harp glissando and bubbling chimes resolving to a warm major chord, treasure discovered, instrumental only"
+      }
+    ]
+  },
+  "cosmos": {
+    "spin": [
+      {
+        "file": "spin-1.mp3",
+        "seconds": 30,
+        "prompt": "Epic space-opera electronic instrumental at 120 BPM, pulsing synth bass, soaring orchestral strings, cosmic arpeggios, interstellar launch countdown energy, loop-friendly with no intro or ending, instrumental only"
+      },
+      {
+        "file": "spin-2.mp3",
+        "seconds": 30,
+        "prompt": "Retro sci-fi lounge instrumental at 125 BPM, theremin-like lead, bubbly analog synths, swinging drums, playful flying-saucer game-show vibe, loop-friendly, instrumental only"
+      },
+      {
+        "file": "spin-3.mp3",
+        "seconds": 30,
+        "prompt": "Dark cinematic ambient-techno instrumental, deep droning bass, ticking clock-like hi-hats, ominous rising synth pads, gravitational tension near a black hole, loop-friendly, instrumental only"
+      }
+    ],
+    "win": [
+      {
+        "file": "win-1.mp3",
+        "seconds": 6,
+        "prompt": "Short cosmic victory fanfare, bright brass and choir swell over glittering synth sparkles, ending on a huge major chord like a supernova, instrumental only"
+      }
+    ]
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "name": "hyperwheel",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "music": "node scripts/generate-music.mjs",
+    "music:dry": "node scripts/generate-music.mjs --dry-run"
+  },
+  "type": "module",
+  "dependencies": {
+    "fflate": "^0.8.3",
+    "three": "^0.186.1"
+  },
+  "devDependencies": {
+    "@types/three": "^0.186.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.2"
+  },
+  "private": true
+}

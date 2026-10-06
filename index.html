@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#07020f" />
+    <title>HyperWheel</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎡</text></svg>" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- UI fonts + one display font per scene (used for the names on the wheel) -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Unbounded:wght@600;800;900&family=Fredoka:wght@600;700&family=Bungee&family=Orbitron:wght@700;800&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <canvas id="scene" aria-label="3D wheel of names. Press Space to spin."></canvas>
+
+    <header class="brand">
+      <h1>Hyper<span>Wheel</span></h1>
+      <div class="badges">
+        <span id="backend" class="badge">booting…</span>
+        <span id="fps" class="badge subtle"></span>
+      </div>
+      <nav class="scene-dock" aria-label="Scenes">
+        <div id="scenes" class="scenes"></div>
+        <span id="scene-name" class="scene-name"></span>
+      </nav>
+    </header>
+
+    <div id="hint" class="hint">Click the wheel or press <kbd>Space</kbd> to spin · drag it to fling</div>
+
+    <aside id="panel" class="panel">
+      <button id="panel-toggle" class="panel-toggle" aria-label="Toggle panel"><span></span></button>
+      <div class="wheel-bar">
+        <input id="wheel-title" class="wheel-title" maxlength="60" aria-label="Wheel name" />
+        <button id="wheel-menu-btn" class="icon-btn" aria-haspopup="menu" aria-label="Wheel menu">⋯</button>
+        <div id="wheel-menu" class="menu" role="menu" hidden>
+          <button data-action="new" role="menuitem">✚ New wheel</button>
+          <button data-action="open" role="menuitem">📂 Open…</button>
+          <button data-action="duplicate" role="menuitem">⧉ Duplicate</button>
+          <hr />
+          <button data-action="export" role="menuitem">⬇ Export file (with models &amp; audio)</button>
+          <button data-action="import" role="menuitem">⬆ Import file…</button>
+          <button data-action="share" role="menuitem">🔗 Copy share link</button>
+          <hr />
+          <button data-action="delete" role="menuitem" class="danger">🗑 Delete wheel</button>
+        </div>
+      </div>
+      <nav class="tabs" role="tablist">
+        <button class="tab active" data-tab="entries" role="tab">Entries <b id="count">0</b></button>
+        <button class="tab" data-tab="results" role="tab">Results <b id="result-count">0</b></button>
+        <button class="tab" data-tab="settings" role="tab" aria-label="Settings">⚙</button>
+      </nav>
+
+      <section class="tab-body active" data-body="entries">
+        <div id="entries-view" class="segmented" role="tablist">
+          <button data-view="names" class="active">✎ Names</button>
+          <button data-view="characters">🧍 Characters</button>
+        </div>
+        <div class="view-names">
+          <div class="toolbar">
+            <button id="shuffle" title="Shuffle entries">⤮ Shuffle</button>
+            <button id="sort" title="Sort A→Z">A→Z Sort</button>
+            <button id="dedupe" title="Remove duplicates">⊜ Unique</button>
+          </div>
+          <textarea id="names" spellcheck="false" placeholder="One name per line"></textarea>
+        </div>
+        <div class="view-characters" hidden>
+          <div class="toolbar">
+            <button id="chars-random" title="Give everyone a random character">🎲 Shuffle</button>
+            <button id="chars-upload" title="Upload rigged humanoid models">⬆ Upload</button>
+            <button id="chars-clear" title="Back to automatic characters">↺ Reset</button>
+          </div>
+          <ul id="entry-list" class="entry-list"></ul>
+        </div>
+        <button id="spin" class="spin-btn"><span>SPIN</span></button>
+      </section>
+
+      <section class="tab-body" data-body="results">
+        <ol id="results" class="results"></ol>
+        <div class="toolbar">
+          <button id="clear-results">Clear results</button>
+        </div>
+      </section>
+
+      <section class="tab-body scroll" data-body="settings">
+        <div class="field">
+          <span>Scene</span>
+          <div id="scene-list" class="scene-list"></div>
+        </div>
+        <div class="field">
+          <span>Preview celebrations</span>
+          <div id="previews" class="previews"></div>
+        </div>
+        <label class="field">
+          <span>Spin duration <output id="duration-out">8s</output></span>
+          <input id="duration" type="range" min="3" max="20" step="1" value="8" />
+        </label>
+        <div class="field">
+          <label class="check"><input id="autoswitch" type="checkbox" checked /> Switch scene after each spin</label>
+          <div id="switch-mode" class="segmented" role="radiogroup" aria-label="Which scene comes next">
+            <button data-mode="next" role="radio">Next in order</button>
+            <button data-mode="random" role="radio">Random</button>
+          </div>
+        </div>
+        <div class="field audio-field">
+          <span>This wheel's music</span>
+          <ul id="spin-tracks" class="file-list"></ul>
+          <button id="add-spin" class="ghost-btn">⬆ Add spin music</button>
+          <span class="sub">Win sound</span>
+          <ul id="win-track" class="file-list"></ul>
+          <button id="add-win" class="ghost-btn">⬆ Set win sound</button>
+          <label class="check"><input id="audio-enabled" type="checkbox" checked /> Use my audio instead of the scene's</label>
+        </div>
+        <label class="check"><input id="characters" type="checkbox" checked /> Show the winner's 3D character</label>
+        <label class="check"><input id="music" type="checkbox" checked /> Music</label>
+        <label class="check"><input id="sound" type="checkbox" checked /> Sound effects</label>
+        <label class="check"><input id="fx" type="checkbox" checked /> Post-processing (bloom, ripples, aberration)</label>
+      </section>
+    </aside>
+
+    <div id="winner" class="winner" hidden>
+      <div class="winner-card" role="dialog" aria-modal="true" aria-labelledby="winner-name">
+        <p class="eyebrow">We have a winner!</p>
+        <h2 id="winner-name">—</h2>
+        <p id="winner-celebration" class="celebration"></p>
+        <label class="check remove-check">
+          <input id="w-remove" type="checkbox" />
+          <span>Remove <b id="w-remove-name"></b> from the wheel</span>
+        </label>
+        <div class="winner-actions">
+          <button id="w-close">Close</button>
+          <button id="w-again" class="primary">Spin again</button>
+        </div>
+      </div>
+    </div>
+
+    <dialog id="open-dialog" class="modal">
+      <header><h3>Your wheels</h3><button class="icon-btn" data-close aria-label="Close">✕</button></header>
+      <ul id="wheel-list" class="wheel-list"></ul>
+    </dialog>
+
+    <dialog id="picker" class="modal wide">
+      <header><h3 id="picker-title">Choose a character</h3><button class="icon-btn" data-close aria-label="Close">✕</button></header>
+      <div id="picker-grid" class="picker-grid"></div>
+      <p class="hint-text">Upload rigged humanoid <b>.glb</b> or <b>.fbx</b> files (Mixamo rigs work great). Dance clips inside the file are used as celebrations, and shared with other Mixamo characters.</p>
+    </dialog>
+
+    <input id="file-models" type="file" accept=".glb,.fbx,model/gltf-binary" multiple hidden />
+    <input id="file-audio" type="file" accept="audio/*,.mp3,.ogg,.wav,.m4a" hidden />
+    <input id="file-wheel" type="file" accept=".hyperwheel,.zip" hidden />
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
