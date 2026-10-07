@@ -27,6 +27,7 @@ import { SCALES } from '../../audio/ChipSynth';
 import { meta, PALETTE } from './meta';
 import { rand, inst } from '../../fx/util';
 import { atlas } from './sprites';
+import { flyby, idleMoments } from '../../fx/ambient';
 import { celebrations } from './celebrations';
 
 const WATER = '#06243f';
@@ -215,6 +216,36 @@ export const abyss: Theme = {
     });
     group.add(snow.object, vents.object);
 
+    // idle life: a few fish always drifting through the background
+    const moments = idleMoments();
+    const school = moments.track(
+      flyby({ atlas: sprites, cells: [1], count: 7, from: [-26, 5.5, -12], box: [2, 2.5, 4], speed: [2, 2.8], life: 22, size: [0.5, 0.8], wobble: 0.35, colors: ['#ffd166', '#ff8fab', '#9ff0ff'], tint: 0.8, loop: true }),
+    );
+    // moments: a stream of bubbles from the sea floor, a big fish swimming past up close
+    const bubbles = moments.track(
+      new Particles({
+        count: 16,
+        atlas: sprites,
+        cells: [0],
+        mode: 'face',
+        tint: 0.35,
+        intensity: 1.3,
+        colors: ['#bff6ff', '#ffffff'],
+        emitters: [{ at: [5.5, 0.3, -5], box: [0.4, 0, 0.4], dir: [0, 1, 0], spread: 0.2, speed: [1, 2], delay: [0, 1.6] }],
+        size: [0.12, 0.3],
+        gravity: [0, 1.6, 0],
+        drag: 1.2,
+        life: [3.5, 4.5],
+        wobble: 0.25,
+      }),
+    );
+    const bigFish = moments.track(
+      flyby({ atlas: sprites, cells: [1], count: 1, from: [-22, 6.5, 2], speed: [4, 5], life: 11, size: [1.1, 1.3], wobble: 0.5, stagger: 0, colors: ['#ffb347'], tint: 0.85 }),
+    );
+    group.add(school.object, bubbles.object, bigFish.object);
+    moments.add(() => bubbles.fire());
+    moments.add(() => bigFish.fire());
+
     const boost = makeLights(group, ['#9fe8ff', 0.8], [
       ['#2fffd6', 12, [-6, 5, 4]],
       ['#8a5cff', 12, [6, 5, 4]],
@@ -222,8 +253,10 @@ export const abyss: Theme = {
 
     return {
       group,
+      moments,
       update(f) {
         boost(f.speed, f.win);
+        moments.update(f);
         snow.update(f.time);
         vents.update(f.time);
       },

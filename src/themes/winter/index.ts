@@ -36,6 +36,7 @@ import { SCALES } from '../../audio/ChipSynth';
 import { meta, PALETTE } from './meta';
 import { rand, inst } from '../../fx/util';
 import { atlas } from './sprites';
+import { idleMoments, pickInView, shootingStar } from '../../fx/ambient';
 import { celebrations } from './celebrations';
 
 const HAZE = '#1d2c4d';
@@ -249,7 +250,7 @@ export const winter: Theme<WinterScene> = {
     brightness: 4200,
   },
 
-  createScene({ scene, center }) {
+  createScene({ scene, center, camera }) {
     const group = new THREE.Group();
     const uAurora = uniform(0);
     const uPhase = uniform(0);
@@ -260,6 +261,7 @@ export const winter: Theme<WinterScene> = {
     scene.environmentIntensity = 0.35;
 
     group.add(makeSnowField(), makeDrifts(), makePines(uAurora));
+    const snowmen: THREE.Object3D[] = [];
     for (const [x, z, ry, s] of [
       [-4.4, 2.4, 0.45, 0.85],
       [4.7, 1.6, -0.5, 0.75],
@@ -269,6 +271,7 @@ export const winter: Theme<WinterScene> = {
       snowman.rotation.y = ry;
       snowman.scale.setScalar(s);
       group.add(snowman);
+      snowmen.push(snowman);
     }
 
     const ice = new THREE.MeshPhysicalNodeMaterial({ color: '#bfe6ff', roughness: 0.08, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.05 });
@@ -301,6 +304,35 @@ export const winter: Theme<WinterScene> = {
     });
     group.add(snowfall.object);
 
+    // idle moments: a shooting star over the aurora, a snowman wobbles, a gust of snow
+    const moments = idleMoments();
+    const star = moments.track(shootingStar({ colors: ['#ffffff', '#c9fff0'] }));
+    const gust = moments.track(
+      new Particles({
+        count: 140,
+        atlas: sprites,
+        cells: [0],
+        mode: 'face',
+        blend: 'additive',
+        intensity: 1.1,
+        emitters: [{ at: [-16, 0.6, 3], box: [1, 0.5, 4], dir: [1, 0.12, 0], spread: 0.2, speed: [7, 11], delay: [0, 1.2] }],
+        size: [0.04, 0.1],
+        gravity: [0, -0.3, 0],
+        drag: 0.3,
+        life: [2, 3],
+        wobble: 0.5,
+        colors: ['#ffffff', '#e3eeff'],
+      }),
+    );
+    group.add(star.object, gust.object);
+    let wobble: { m: THREE.Object3D; t: number } | null = null;
+    moments.add(() => star.fire());
+    moments.add(() => gust.fire());
+    moments.add(() => {
+      const m = pickInView(camera, snowmen, (s, out) => s.getWorldPosition(out).setY(1));
+      if (m) wobble = { m, t: 0 };
+    });
+
     const boost = makeLights(group, ['#cfe3ff', 1.0], [
       ['#ffb36b', 10, [-6, 4, 4]],
       ['#7fdbff', 12, [6, 5, 3]],
@@ -309,6 +341,7 @@ export const winter: Theme<WinterScene> = {
     let stormLeft = 0;
     return {
       group,
+      moments,
       aurora(amount) {
         uAurora.value = Math.max(uAurora.value, amount);
       },
@@ -317,6 +350,12 @@ export const winter: Theme<WinterScene> = {
       },
       update(f) {
         boost(f.speed, f.win);
+        moments.update(f);
+        if (wobble) {
+          wobble.t = Math.min(1, wobble.t + f.dt / 1.4);
+          wobble.m.rotation.z = Math.sin(wobble.t * 20) * 0.1 * (1 - wobble.t);
+          if (wobble.t >= 1) wobble = null;
+        }
         snowfall.update(f.time);
         uPhase.value += f.dt * (1 + uAurora.value * 5 + f.speed * 0.05);
         uAurora.value *= Math.exp(-f.dt * 0.6);

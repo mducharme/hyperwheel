@@ -76,6 +76,8 @@ export class CameraRig {
     const availH = Math.max(1, h - (insets.used ?? this.off.y));
     const F = this.style.frame;
     let dist = Math.max(F / 2 / (tanHalf * (availH / h)), F / 2 / (tanHalf * (availW / h))) * 1.04;
+    // desktop (side panel): pull back a little so some of the scene shows around the wheel
+    if (insets.x > 0) dist *= 1.1;
 
     this.punch += ((win > 0 ? 1 : 0) - this.punch) * (1 - Math.exp(-dt * (win > 0 ? 6 : 2)));
     if (this.focus) this.focusPoint.copy(this.focus);
@@ -104,8 +106,8 @@ export class CameraRig {
     const shiftY = (this.off.y / 2) * unitsPerPx;
 
     this.parallax.lerp(this.pointer, 1 - Math.exp(-dt * 3));
-    const swayX = Math.sin(t * 0.21) * 0.35 + this.parallax.x * 1.4;
-    const swayY = Math.sin(t * 0.17) * 0.18 + this.parallax.y * 0.7;
+    const swayX = Math.sin(t * 0.21) * 0.35 + this.parallax.x * 2.3;
+    const swayY = Math.sin(t * 0.17) * 0.18 + this.parallax.y * 1.15;
 
     const C = this.center;
     this.target.set(C.x + shiftX, C.y - this.style.look - shiftY, 0);

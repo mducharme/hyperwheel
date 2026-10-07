@@ -33,6 +33,7 @@ import { SCALES } from '../../audio/ChipSynth';
 import { meta, PALETTE } from './meta';
 import { rand } from '../../fx/util';
 import { atlas } from './sprites';
+import { flyby, idleMoments } from '../../fx/ambient';
 import { celebrations } from './celebrations';
 
 const NIGHT = '#241a36';
@@ -240,7 +241,8 @@ export interface HauntedScene extends ThemeScene {
   /** Pumpkins flare up. */
   surge(amount: number): void;
   /** Sky and moonlight flash. */
-  lightning(): void;
+  /** A double-strike flash; `strength` < 1 for distant lightning. */
+  lightning(strength?: number): void;
 }
 
 // ------------------------------------------------------------------ theme
@@ -341,17 +343,33 @@ export const haunted: Theme<HauntedScene> = {
     const candle = lights.find((l) => (l as THREE.PointLight).isPointLight)!;
     let flash = 0;
     let flashT = -1;
+    let flashAmp = 1;
+
+    // idle moments: bats flitting past, a distant (silent) flash of lightning
+    const moments = idleMoments();
+    const bats = moments.track(
+      flyby({ atlas: sprites, cells: [0], count: 6, from: [-20, 6.5, -4], box: [2, 1.2, 2], speed: [4.2, 5], life: 9.5, size: [0.8, 1.1], wobble: 0.6, stagger: 1.2 }),
+    );
+    group.add(bats.object);
+    moments.add(() => bats.fire());
+    moments.add(() => {
+      flashT = 0;
+      flashAmp = 0.35;
+    });
 
     return {
       group,
+      moments,
       surge(amount) {
         uGlow.value = Math.max(uGlow.value, amount);
       },
-      lightning() {
+      lightning(strength = 1) {
         flashT = 0;
+        flashAmp = strength;
       },
       update(f) {
         boost(f.speed, f.win);
+        moments.update(f);
         wisps.update(f.time);
         // candle flicker on the pumpkin light
         candle.intensity *= 0.85 + Math.random() * 0.3;
@@ -362,8 +380,8 @@ export const haunted: Theme<HauntedScene> = {
           flash = t < 0.12 ? 1 : t < 0.22 ? 0.15 : t < 0.32 ? 0.85 : Math.max(0, 0.85 - (t - 0.32) * 2.5);
           if (t > 1) flashT = -1;
         } else flash = 0;
-        uLightning.value = flash * 0.6;
-        moonlight.intensity = 0.7 + flash * 6;
+        uLightning.value = flash * 0.6 * flashAmp;
+        moonlight.intensity = 0.7 + flash * 6 * flashAmp;
         uGlow.value *= Math.exp(-f.dt * 1.2);
       },
     };

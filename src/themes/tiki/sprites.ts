@@ -28,6 +28,19 @@ export const leaf: Sprite = (ctx, r) => {
   ctx.fill();
 };
 
+/** A distant seagull: two curved wings, catching the sunset light. */
+export const gull: Sprite = (ctx, r) => {
+  ctx.strokeStyle = '#fff4e8';
+  ctx.lineWidth = r * 0.14;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  ctx.moveTo(-r * 0.85, -r * 0.05);
+  ctx.quadraticCurveTo(-r * 0.45, -r * 0.45, 0, r * 0.08);
+  ctx.quadraticCurveTo(r * 0.45, -r * 0.45, r * 0.85, -r * 0.05);
+  ctx.stroke();
+};
+
 export const atlas = () =>
   makeAtlas([
     flower('#ff4d6d', '#ffd23f'), // hibiscus-ish

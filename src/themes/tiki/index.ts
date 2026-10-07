@@ -33,7 +33,9 @@ import { uSpeed, uWin } from '../../engine/globals';
 import { SCALES } from '../../audio/ChipSynth';
 import { meta, PALETTE } from './meta';
 import { rand } from '../../fx/util';
-import { atlas } from './sprites';
+import { atlas, gull } from './sprites';
+import { flyby, idleMoments } from '../../fx/ambient';
+import { makeAtlas } from '../../fx/atlas';
 import { celebrations } from './celebrations';
 
 const HAZE = '#6b3f63';
@@ -410,6 +412,15 @@ export const tiki: Theme<TikiScene> = {
     });
     group.add(flames.object, embers.object, smoke.object);
 
+    // idle moments: seagulls crossing the sunset, the volcano rumbles and glows
+    const moments = idleMoments();
+    const gulls = moments.track(
+      flyby({ atlas: makeAtlas([gull]), cells: [0], count: 5, from: [-34, 9.5, -32], box: [2, 1.5, 3], speed: [5, 6.5], life: 12, size: [0.9, 1.2], wobble: 0.6, stagger: 1.5, fog: false }),
+    );
+    group.add(gulls.object);
+    moments.add(() => gulls.fire());
+    moments.add(() => (uErupt.value = Math.max(uErupt.value, 0.4)));
+
     const boost = makeLights(group, ['#ffb27a', 1.1], [
       ['#ff8a3d', 12, [torchTops[0].x, 3, torchTops[0].z + 0.5]],
       ['#ff8a3d', 12, [torchTops[1].x, 3, torchTops[1].z + 0.5]],
@@ -418,6 +429,7 @@ export const tiki: Theme<TikiScene> = {
 
     return {
       group,
+      moments,
       torchTops,
       crater: new THREE.Vector3(VOLCANO.x, CRATER, VOLCANO.z),
       flare(amount) {
@@ -428,6 +440,7 @@ export const tiki: Theme<TikiScene> = {
       },
       update(f) {
         boost(f.speed, f.win);
+        moments.update(f);
         for (const l of torchLights) l.intensity *= (0.85 + Math.random() * 0.3) * (1 + uFlare.value * 2);
         flames.update(f.time);
         embers.update(f.time);

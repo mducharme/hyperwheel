@@ -32,6 +32,8 @@ export interface ThemeScene {
   update(f: FrameState): void;
   /** Extra cleanup beyond disposing the group's geometries/materials. */
   dispose?(): void;
+  /** Occasional touches of life while idle (see fx/ambient.ts). */
+  moments?: { readonly count: number; play(i: number): void };
 }
 
 /**

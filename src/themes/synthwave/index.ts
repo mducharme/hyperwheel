@@ -1,9 +1,9 @@
 import * as THREE from 'three/webgpu';
 import {
-  Fn,
-  vec4,
   abs,
+  exp,
   float,
+  Fn,
   fract,
   fwidth,
   min,
@@ -17,9 +17,11 @@ import {
   smoothstep,
   step,
   time,
+  uniform,
   uv,
   vec2,
   vec3,
+  vec4,
 } from 'three/tsl';
 import type { Theme, ThemeScene } from '../types';
 import { makeFloor, makeLights, makeStand, rgb } from '../shared';
@@ -27,6 +29,7 @@ import { lowRes, starField } from '../../fx/nodes';
 import { uSpeed, uWin } from '../../engine/globals';
 import { SCALES } from '../../audio/ChipSynth';
 import { meta, PALETTE } from './meta';
+import { idleMoments, shootingStar } from '../../fx/ambient';
 import { celebrations } from './celebrations';
 
 /** Anti-aliased grid lines over a 2D coordinate. */
@@ -127,6 +130,18 @@ export const synthwave: Theme = {
   createScene({ scene, center }) {
     const group = new THREE.Group();
     scene.backgroundNode = sky();
+    // a light-cycle racing down one grid lane toward the horizon (progress 0..1, <0 = off)
+    const uRace = uniform(-1);
+    const uLane = uniform(0);
+    const uRaceColor = uniform(new THREE.Color('#26d9ff'));
+    const racer = (xz: any) => {
+      const head = mix(float(8), float(-70), uRace);
+      const behind = xz.y.sub(head); // > 0: the trail, on the camera side of the head
+      const trail = behind.greaterThan(0).select(exp(behind.mul(-0.15)), exp(behind.mul(2.5)));
+      const lane = exp(xz.x.sub(uLane).mul(9).pow(2).negate());
+      const tip = exp(behind.mul(1.2).pow(2).negate()).mul(3); // bright head
+      return (uRaceColor as any).mul(lane.mul(trail.mul(3).add(tip))).mul(uRace.greaterThanEqual(0).select(float(1), float(0)));
+    };
     scene.environmentIntensity = 0.3;
 
     group.add(makeSun(), makeMountains());
@@ -141,7 +156,8 @@ export const synthwave: Theme = {
             .mul(gridLines(xz, 1.2))
             .mul(pulse.mul(0.9).add(0.35))
             .mul(float(1).sub(smoothstep(6, 34, dist)))
-            .mul(float(1).add(uWin.mul(1.5)));
+            .mul(float(1).add(uWin.mul(1.5)))
+            .add(racer(xz));
         },
       }),
     );
@@ -160,7 +176,27 @@ export const synthwave: Theme = {
       ['#ff2fd0', 14, [-6, 5, 4]],
       ['#2fd8ff', 14, [6, 5, 4]],
     ]);
-    const scn: ThemeScene = { group, update: (f) => boost(f.speed, f.win) };
+    // idle moments
+    const moments = idleMoments();
+    const star = moments.track(shootingStar());
+    group.add(star.object);
+    moments.add(() => star.fire());
+    moments.add(() => {
+      // on a grid line, beside the wheel rather than hidden behind it
+      uLane.value = (Math.random() < 0.5 ? -1 : 1) * Math.round((5 + Math.random() * 4) / 1.2) * 1.2;
+      uRaceColor.value.set(Math.random() < 0.5 ? '#26d9ff' : '#ff26bf');
+      uRace.value = 0;
+    });
+
+    const scn: ThemeScene = {
+      group,
+      moments,
+      update: (f) => {
+        boost(f.speed, f.win);
+        moments.update(f);
+        if (uRace.value >= 0) uRace.value = uRace.value + f.dt / 2.4 >= 1 ? -1 : uRace.value + f.dt / 2.4;
+      },
+    };
     return scn;
   },
 

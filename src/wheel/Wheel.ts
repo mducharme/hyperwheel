@@ -26,7 +26,7 @@ import {
   vec3,
 } from 'three/tsl';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { brightness, segmentColor } from './colors';
+import { prefersDarkText, segmentColor } from './colors';
 import { iridescent } from '../fx/nodes';
 
 export const WHEEL_RADIUS = 3;
@@ -58,6 +58,9 @@ export interface WheelStyle {
   frame: string;
 }
 
+/** Name color on light segments. */
+const DARK_TEXT = '#16052a';
+
 const col = (hex = '#ffffff') => uniform(new THREE.Color(hex));
 
 export class Wheel {
@@ -71,6 +74,8 @@ export class Wheel {
   readonly uSpeed = uniform(0);
   readonly uWin = uniform(0);
   readonly uChase = uniform(0);
+  /** 0..1: idle "attract mode" light show on the marquee bulbs. */
+  readonly uAttract = uniform(0);
 
   private readonly uRimA = col();
   private readonly uRimB = col();
@@ -260,7 +265,7 @@ export class Wheel {
     ctx.textBaseline = 'middle';
     for (let i = 0; i < n; i++) {
       const hex = segmentColor(palette, i, n);
-      const dark = brightness(hex) > 0.62;
+      const dark = prefersDarkText(hex, DARK_TEXT);
       let label = names[i];
       let size = maxFont;
       ctx.font = font(size);
@@ -281,7 +286,7 @@ export class Wheel {
       ctx.rotate(-(i + 0.5) * seg); // canvas Y is flipped vs world Y
       ctx.shadowColor = dark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.55)';
       ctx.shadowBlur = size * 0.12;
-      ctx.fillStyle = dark ? '#16052a' : '#ffffff';
+      ctx.fillStyle = dark ? DARK_TEXT : '#ffffff';
       ctx.fillText(label, outer, size * 0.04);
       ctx.restore();
     }
@@ -383,7 +388,11 @@ export class Wheel {
     const strobe = step(0.5, fract(time.mul(6))).mul(this.uWin);
     const alt = step(0.5, fract(phase.mul(LED_COUNT / 2)));
     const bulb = mix(this.uLedA, this.uLedB, alt);
-    const bright = max(lit.mul(3.2).add(0.15), strobe.mul(5));
+    // attract mode: two lights circling opposite ways, alternating with a marquee blink
+    const comets = max(pow(fract(phase.sub(time.mul(0.36))), 16), pow(fract(phase.negate().sub(time.mul(0.36)).add(0.5)), 16));
+    const blink = mix(alt, float(1).sub(alt), step(0.5, fract(time.mul(1.1)))).mul(0.8);
+    const show = mix(comets, blink, smoothstep(-0.3, 0.3, sin(time.mul(0.45))));
+    const bright = max(mix(lit, show, this.uAttract).mul(3.2).add(0.15), strobe.mul(5));
     mat.colorNode = bulb.mul(0.3);
     mat.emissiveNode = mix(bulb, vec3(1, 0.95, 0.85), this.uWin.mul(0.5)).mul(bright);
 

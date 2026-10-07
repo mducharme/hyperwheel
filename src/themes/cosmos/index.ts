@@ -33,6 +33,7 @@ import { SCALES } from '../../audio/ChipSynth';
 import { meta, PALETTE } from './meta';
 import { rand, inst } from '../../fx/util';
 import { atlas } from './sprites';
+import { flyby, idleMoments, shootingStar } from '../../fx/ambient';
 import { celebrations } from './celebrations';
 
 // ------------------------------------------------------------------ world
@@ -230,6 +231,7 @@ export const cosmos: Theme<CosmosScene> = {
 
   createScene({ scene, center }) {
     const group = new THREE.Group();
+    const sprites = atlas();
     scene.backgroundNode = sky();
     scene.environmentIntensity = 0.25;
 
@@ -246,7 +248,7 @@ export const cosmos: Theme<CosmosScene> = {
 
     const dust = new Particles({
       count: 220,
-      atlas: atlas(),
+      atlas: sprites,
       cells: [6],
       loop: true,
       mode: 'face',
@@ -261,6 +263,16 @@ export const cosmos: Theme<CosmosScene> = {
     });
     group.add(dust.object);
 
+    // idle moments: a shooting star, a UFO cruising past
+    const moments = idleMoments();
+    const star = moments.track(shootingStar({ colors: ['#ffffff', '#ffe3c4'] }));
+    const ufo = moments.track(
+      flyby({ atlas: sprites, cells: [5], count: 1, from: [-34, 9, -30], dir: [1, 0.02, 0], speed: [7, 8], life: 9.5, size: [1.6, 1.6], wobble: 0.8, stagger: 0, fog: false }),
+    );
+    group.add(star.object, ufo.object);
+    moments.add(() => star.fire());
+    moments.add(() => ufo.fire());
+
     const boost = makeLights(group, ['#ffffff', 1.0], [
       ['#ffb347', 16, [8, 8, -2]],
       ['#8a7dff', 12, [-6, 4, 4]],
@@ -269,11 +281,13 @@ export const cosmos: Theme<CosmosScene> = {
     let phase = 0;
     return {
       group,
+      moments,
       surge(amount) {
         uSurge.value = Math.max(uSurge.value, amount);
       },
       update(f) {
         boost(f.speed, f.win);
+        moments.update(f);
         dust.update(f.time);
         phase += f.dt * (1 + f.speed * 0.15 + uSurge.value * 6);
         belt.uPhase.value = phase;

@@ -26,6 +26,7 @@ import { uSpeed, uWin } from '../../engine/globals';
 import { SCALES } from '../../audio/ChipSynth';
 import { meta, PALETTE } from './meta';
 import { atlas } from './sprites';
+import { idleMoments, pickInView } from '../../fx/ambient';
 import { celebrations } from './celebrations';
 
 // ------------------------------------------------------------------ world
@@ -71,6 +72,7 @@ function makeGumdrops(count: number) {
   const mesh = new THREE.InstancedMesh(geo, mat, count);
   const m = new THREE.Matrix4();
   const c = new THREE.Color();
+  const bases: THREE.Matrix4[] = [];
   for (let i = 0; i < count; i++) {
     const a = Math.random() * Math.PI * 2;
     const d = 5 + Math.random() * 16;
@@ -82,7 +84,9 @@ function makeGumdrops(count: number) {
     );
     mesh.setMatrixAt(i, m);
     mesh.setColorAt(i, c.set(PALETTE[i % PALETTE.length]));
+    bases.push(m.clone());
   }
+  mesh.userData.bases = bases;
   return mesh;
 }
 
@@ -126,7 +130,7 @@ export const candy: Theme<CandyScene> = {
     brightness: 5000,
   },
 
-  createScene({ scene, center }) {
+  createScene({ scene, center, camera }) {
     const group = new THREE.Group();
     scene.backgroundNode = sky();
     scene.environmentIntensity = 0.45;
@@ -172,11 +176,13 @@ export const candy: Theme<CandyScene> = {
       l.position.set(x, 0, z);
       l.rotation.y = Math.random() * 0.6 - 0.3;
       l.userData.phase = Math.random() * 6;
+      l.userData.baseY = l.rotation.y;
       group.add(l);
       return l;
     });
 
-    group.add(makeGumdrops(46));
+    const gumdrops = makeGumdrops(46);
+    group.add(gumdrops);
 
     // floating sugar sparkles
     const sparkles = new Particles({
@@ -197,6 +203,43 @@ export const candy: Theme<CandyScene> = {
     });
     group.add(sparkles.object);
 
+    // idle moments: a gumdrop hops, a lollipop twirls
+    const moments = idleMoments();
+    const bases: THREE.Matrix4[] = gumdrops.userData.bases;
+    const p = new THREE.Vector3(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), hopM = new THREE.Matrix4();
+    let hop: { i: number; t: number } | null = null;
+    let twirl: { l: THREE.Object3D; t: number } | null = null;
+    // pick ones the camera can see (desktop and phone framing differ a lot)
+    const all = bases.map((_, i) => i);
+    moments.add(() => {
+      const i = pickInView(camera, all, (i, out) => out.setFromMatrixPosition(bases[i]));
+      if (i !== null) hop = { i, t: 0 };
+    });
+    moments.add(() => {
+      const l = pickInView(camera, lollipops, (l, out) => l.getWorldPosition(out).setY(l.userData.top ?? 3));
+      if (l) twirl = { l, t: 0 };
+    });
+    const animateMoments = (dt: number) => {
+      if (hop) {
+        hop.t = Math.min(1, hop.t + dt / 0.9);
+        const u = hop.t;
+        bases[hop.i].decompose(p, q, sc);
+        // squash on take-off and landing, stretch in the air
+        const k = (1 - 0.3 * (Math.exp(-((u / 0.07) ** 2)) + Math.exp(-(((u - 1) / 0.07) ** 2)))) * (1 + 0.15 * Math.sin(Math.PI * u));
+        p.y += 4.4 * sc.y * u * (1 - u);
+        gumdrops.setMatrixAt(hop.i, hopM.compose(p, q, sc.set(sc.x / Math.sqrt(k), sc.y * k, sc.z / Math.sqrt(k))));
+        gumdrops.instanceMatrix.needsUpdate = true;
+        if (u >= 1) hop = null;
+      }
+      if (twirl) {
+        twirl.t = Math.min(1, twirl.t + dt / 1.6);
+        const u = twirl.t;
+        const ease = u < 0.5 ? 2 * u * u : 1 - (-2 * u + 2) ** 2 / 2;
+        twirl.l.rotation.y = twirl.l.userData.baseY + ease * Math.PI * 2;
+        if (u >= 1) twirl = null;
+      }
+    };
+
     const boost = makeLights(group, ['#fff6e8', 1.2], [
       ['#ff8fc8', 10, [-6, 5, 4]],
       ['#7dffe0', 10, [6, 5, 4]],
@@ -204,9 +247,12 @@ export const candy: Theme<CandyScene> = {
 
     return {
       group,
+      moments,
       lollipops,
       update(f) {
         boost(f.speed, f.win);
+        moments.update(f);
+        animateMoments(f.dt);
         sparkles.update(f.time);
         for (const l of lollipops) l.rotation.z = Math.sin(f.time * 0.8 + l.userData.phase) * 0.03 * (1 + f.win * 6);
       },

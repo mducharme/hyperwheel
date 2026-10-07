@@ -5,6 +5,7 @@ import { CameraRig, type Insets } from '../engine/CameraRig';
 import { Spin, segmentAtPointer } from '../engine/physics';
 import { uSpeed, uWin } from '../engine/globals';
 import { Wheel, WHEEL_RADIUS } from '../wheel/Wheel';
+import { Attract } from '../wheel/Attract';
 import { Pointer } from '../wheel/Pointer';
 import { AudioBus } from '../audio/AudioBus';
 import { Sfx } from '../audio/Sfx';
@@ -62,6 +63,7 @@ export class App {
   readonly cam: CameraRig;
   readonly stunts: Stunts;
   private pointer: Pointer;
+  private attract = new Attract(this.wheel);
   private drag!: DragSpin;
 
   theme!: Theme<any>;
@@ -109,7 +111,10 @@ export class App {
     this.stage = new Stage(canvas);
     this.cam = new CameraRig(this.stage.camera, WHEEL_CENTER);
     this.stunts = new Stunts(this.wheel.root, WHEEL_CENTER);
-    this.pointer = new Pointer(this.wheel.flapper, (speed) => this.sfx.tick(speed));
+    // ticks only when the wheel really turns (not for the attract-mode nudge)
+    this.pointer = new Pointer(this.wheel.flapper, (speed) => {
+      if (this.spin.spinning || this.drag?.dragging) this.sfx.tick(speed);
+    });
     this.wheel.root.position.copy(WHEEL_CENTER);
     this.showcase = new Showcase((at, entrance) => {
       this.stage.triggerFlash(this.theme.ui.accent, 0.25, 0.4);
@@ -457,9 +462,12 @@ export class App {
     const speed = Math.abs(omega);
     const win = this.winAt >= 0 ? Math.max(0, 1 - (this.elapsed - this.winAt) / 3.2) : 0;
 
-    this.wheel.spinner.rotation.z = this.spin.angle;
+    // attract mode: a couple of seconds after the last interaction, while nothing else is happening
+    const calm = !this.spin.spinning && !this.drag?.dragging && win === 0 && !this.showcase.current && this.elapsed > this.activeUntil + 2;
+    const nudge = this.attract.update(dt, calm);
+    this.wheel.spinner.rotation.z = this.spin.angle + nudge;
     if (this.names.length) this.wheel.uActive.value = segmentAtPointer(this.spin.angle, this.names.length);
-    this.pointer.update(dt, this.spin.angle, omega, this.wheel.pegSpacing);
+    this.pointer.update(dt, this.spin.angle + nudge, omega + this.attract.velocity, this.wheel.pegSpacing);
 
     uSpeed.value = speed;
     uWin.value = win;

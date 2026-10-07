@@ -75,6 +75,10 @@ export interface ParticleOptions {
   loop?: boolean;
   /** Randomly mirror the effect on X each time it fires (default true). */
   mirror?: boolean;
+  /** face mode: keep sprites level and turned toward their direction of travel (sprites face +X), for creatures and craft. */
+  upright?: boolean;
+  /** Affected by scene fog (default true); turn off for things far away in the sky. */
+  fog?: boolean;
 }
 
 
@@ -202,6 +206,10 @@ export class Particles {
 
     if (mode === 'tumble') {
       quad = rotate(quad, aAxis.mul(tc).add(phase) as any);
+    } else if (mode === 'face' && opts.upright) {
+      // no roll; mirror horizontally when travelling toward -X
+      const facing = aVel.x.mul(this.uMirror).lessThan(0).select(float(-1), float(1));
+      quad = vec3(quad.x.mul(facing), quad.y, 0);
     } else if (mode === 'face') {
       quad = rotate(quad, (vec3 as any)(0, 0, phase.add(tc.mul(aAxis.z))));
     } else {
@@ -240,6 +248,7 @@ export class Particles {
       mat = m;
     }
     mat.side = THREE.DoubleSide;
+    mat.fog = opts.fog ?? true;
     mat.positionNode = quad.add(pos);
 
     this.object = new THREE.InstancedMesh(new THREE.PlaneGeometry(aspect, 1), mat, count);

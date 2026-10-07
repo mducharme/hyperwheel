@@ -32,6 +32,8 @@ import { uSpeed, uWin } from '../../engine/globals';
 import { SCALES } from '../../audio/ChipSynth';
 import { meta, PALETTE } from './meta';
 import { rand, inst } from '../../fx/util';
+import { glowAtlas, idleMoments } from '../../fx/ambient';
+import { Particles } from '../../fx/Particles';
 import { celebrations } from './celebrations';
 
 const WALL_Z = -13;
@@ -309,8 +311,31 @@ export const gameshow: Theme<ShowScene> = {
     const aim = new THREE.Quaternion();
     const sweep = new THREE.Quaternion();
     const down = new THREE.Vector3(0, -1, 0);
+    // idle moments: camera flashes from the wings, the spotlights snap onto the wheel
+    const moments = idleMoments();
+    const flashes = moments.track(
+      new Particles({
+        count: 9,
+        atlas: glowAtlas(),
+        mode: 'face',
+        blend: 'additive',
+        intensity: 4,
+        mirror: false,
+        emitters: [-7, 7].map((x) => ({ at: [x, 2.5, -6] as [number, number, number], box: [1.2, 1, 2] as [number, number, number], speed: [0, 0.01] as [number, number], delay: [0, 2.2] as [number, number] })),
+        size: [0.5, 0.9],
+        gravity: [0, 0, 0],
+        drag: 0.01,
+        life: [0.1, 0.16],
+        colors: ['#ffffff', '#fff6d6'],
+      }),
+    );
+    group.add(flashes.object);
+    moments.add(() => flashes.fire());
+    moments.add(() => (convergeLeft = 1.6));
+
     return {
       group,
+      moments,
       jackpot(s) {
         jackpotLeft = Math.max(jackpotLeft, s);
       },
@@ -322,6 +347,7 @@ export const gameshow: Theme<ShowScene> = {
       },
       update(f) {
         boost(f.speed, f.win);
+        moments.update(f);
         jackpotLeft = Math.max(0, jackpotLeft - f.dt);
         cheerLeft = Math.max(0, cheerLeft - f.dt);
         convergeLeft = Math.max(0, convergeLeft - f.dt);
