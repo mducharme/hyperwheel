@@ -82,9 +82,9 @@ export class UI {
       if (c === 'results') this.renderResults();
       if (c === 'entries') this.syncEntries();
     });
-    const { fromLink } = await this.session.load();
+    const loaded = await this.session.load();
     await this.opening;
-    return { fromLink };
+    return loaded;
   }
 
   /** A wheel was opened: refresh every control from its document. */

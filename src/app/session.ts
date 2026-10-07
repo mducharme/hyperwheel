@@ -23,14 +23,16 @@ export class Session {
   }
 
   /** Boot: a share link, else the last wheel, else migrate the pre-library state. */
-  async load(): Promise<{ fromLink: boolean }> {
+  async load(): Promise<{ fromLink: boolean; linkError?: string }> {
     const shared = await readShareLink();
-    if (shared) {
-      history.replaceState(null, '', location.pathname + location.search);
-      await wheels.save(shared);
-      this.open(shared);
+    let linkError: string | undefined;
+    if (shared) history.replaceState(null, '', location.pathname + location.search);
+    if (shared && 'wheel' in shared) {
+      await wheels.save(shared.wheel);
+      this.open(shared.wheel);
       return { fromLink: true };
     }
+    if (shared) linkError = shared.error;
     let doc = store.currentWheel ? await wheels.get(store.currentWheel) : undefined;
     doc ??= (await wheels.list())[0];
     if (!doc) {
@@ -49,7 +51,7 @@ export class Session {
       await wheels.save(doc);
     }
     this.open(doc);
-    return { fromLink: false };
+    return { fromLink: false, linkError };
   }
 
   open(doc: WheelDoc) {

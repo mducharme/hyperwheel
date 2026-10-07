@@ -53,7 +53,7 @@ async function boot() {
     return;
   }
   ui.setBackend(app.stage.isWebGPU);
-  const { fromLink } = await ui.init();
+  const { fromLink, linkError } = await ui.init();
   performance.mark('hw:scene');
   app.start();
   // after the first frame: fetch the other scenes and the character loaders while idle
@@ -64,6 +64,7 @@ async function boot() {
     void warmDanceLibrary();
   });
   if (fromLink) toast('Opened a shared wheel — it\'s saved in your wheels.');
+  else if (linkError) toast(linkError);
 }
 
 void boot();

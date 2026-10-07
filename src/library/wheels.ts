@@ -281,21 +281,60 @@ export async function shareLink(w: WheelDoc): Promise<{ url: string; dropped: nu
   return { url, dropped: wheelAssets(w).length };
 }
 
-/** If the page was opened from a share link, turn it into a new wheel. */
-export async function readShareLink(): Promise<WheelDoc | null> {
-  const m = location.hash.match(/^#w=([\w-]+)/);
+/** Inflate at most `max` bytes, stopping as soon as the output passes it. */
+async function inflateCapped(data: Uint8Array, max: number): Promise<Uint8Array> {
+  const { Inflate } = await zip();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  const inflater = new Inflate((chunk) => {
+    size += chunk.length;
+    if (size > max) throw new Error('share link expands past the size limit');
+    chunks.push(chunk);
+  });
+  // small input slices bound how much a single push can expand (deflate tops out near 1000:1)
+  for (let i = 0; i < data.length; i += 512) inflater.push(data.subarray(i, i + 512), i + 512 >= data.length);
+  const out = new Uint8Array(size);
+  let at = 0;
+  for (const c of chunks) {
+    out.set(c, at);
+    at += c.length;
+  }
+  return out;
+}
+
+export type ShareLinkResult = { wheel: WheelDoc } | { error: string };
+
+/**
+ * If the page was opened from a share link, turn it into a new wheel.
+ *
+ * Links come from anyone, so the payload is bounded (encoded length and inflated
+ * size) and rebuilt through `sanitizeWheel` like an imported file: only text,
+ * known setting values and built-in character ids survive.
+ */
+export async function readShareLink(): Promise<ShareLinkResult | null> {
+  const m = location.hash.match(/^#w=([\w-]*)/);
   if (!m) return null;
+  const bad = { error: "That share link is damaged or incomplete, so it couldn't be opened." };
+  if (!m[1] || m[1].length > LIMITS.shareLinkChars) return bad;
   try {
-    const { strFromU8, inflateSync } = await zip();
-    const p = JSON.parse(strFromU8(inflateSync(fromB64url(m[1])))) as Shared;
-    const w = newWheel(p.t || 'Shared wheel', p.n ?? []);
-    w.entries.forEach((e, i) => {
-      if (p.c?.[i]) e.character = `builtin:${p.c[i]}`;
-    });
-    w.settings = { ...DEFAULT_SETTINGS, ...p.s };
-    return w;
+    const { strFromU8 } = await zip();
+    const p: unknown = JSON.parse(strFromU8(await inflateCapped(fromB64url(m[1]), LIMITS.shareJsonBytes)));
+    if (!isObject(p)) return bad;
+    const c = array(p.c);
+    const clean = sanitizeWheel(
+      {
+        title: p.t,
+        entries: array(p.n).map((name, i) => ({ name, character: typeof c[i] === 'string' && c[i] ? `builtin:${c[i]}` : undefined })),
+        settings: p.s,
+      },
+      new Set(), // uploads never travel in a link
+    );
+    const w = newWheel(clean.title === 'Imported wheel' ? 'Shared wheel' : clean.title, []);
+    w.entries = clean.entries.map((e) => ({ id: uid(), ...e }));
+    w.settings = { ...DEFAULT_SETTINGS, ...clean.settings };
+    return { wheel: w };
   } catch (err) {
     console.warn('bad share link', err);
-    return null;
+    return bad;
   }
 }

@@ -13,6 +13,10 @@ export const LIMITS = {
   manifestBytes: 2 * 1024 * 1024,
   importTotalBytes: 400 * 1024 * 1024,
   importAssets: 200,
+
+  /** share links (#w=…): encoded length, and the JSON it may inflate to */
+  shareLinkChars: 128 * 1024,
+  shareJsonBytes: 256 * 1024,
 } as const;
 
 export const MIME_ALLOWED = {
