@@ -197,8 +197,8 @@ export const cosmos: Theme<CosmosScene> = {
   ...meta,
   wheel: {
     palette: PALETTE,
-    font: '"Orbitron"',
-    fontWeight: 800,
+    font: `"${meta.font.family}"`,
+    fontWeight: meta.font.weight,
     rim: ['#ffb347', '#8a7dff'],
     holo: 0.5,
     flapper: '#ffb347',

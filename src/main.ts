@@ -4,7 +4,17 @@ import { UI } from './app/ui';
 import { toast } from './app/dom';
 import { listAssets } from './library/assets';
 import { getTheme, prefetchThemes } from './themes';
-import { store } from './app/store';
+import { persist, store } from './app/store';
+import { loadSceneFont } from './themes/fonts';
+import { debug } from './debug';
+
+const debugParam = new URLSearchParams(location.search).get('debug');
+if (debugParam !== null) {
+  store.debug = !['0', 'false', 'off'].includes(debugParam);
+  persist();
+}
+debug.enabled = store.debug;
+document.body.classList.toggle('debug', store.debug);
 
 /**
  * Load uploaded characters in the background (one at a time, when idle) so
@@ -23,7 +33,10 @@ async function warmDanceLibrary() {
 }
 
 // Start downloading the scene we'll most likely show while the GPU initialises.
-void getTheme(store.lastTheme ?? 'synthwave').load();
+// start on the first scene's code and wheel font right away, in parallel with everything else
+const firstTheme = getTheme(store.lastTheme ?? 'synthwave');
+void firstTheme.load();
+void loadSceneFont(firstTheme.font);
 
 const canvas = document.getElementById('scene') as HTMLCanvasElement;
 let ui: UI;

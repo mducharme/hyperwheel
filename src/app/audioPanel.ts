@@ -105,8 +105,8 @@ export class AudioPanel {
 
     if (!audio.enabled) return this.app.music.setCustom([], []);
     const files = async (ids: string[]) =>
-      (await Promise.all(ids.map(async (id) => ({ id, blob: (await getAsset(id))?.blob })))).filter(
-        (f): f is { id: string; blob: Blob } => !!f.blob,
+      (await Promise.all(ids.map(async (id) => { const a = await getAsset(id); return { id, name: a?.name, blob: a?.blob }; }))).filter(
+        (f): f is { id: string; name: string | undefined; blob: Blob } => !!f.blob,
       );
     this.app.music.setCustom(await files(audio.spin), await files(audio.wins));
   }

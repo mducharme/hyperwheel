@@ -1,3 +1,4 @@
+import { debug } from '../debug';
 import type { QualityLevel, QualityPref } from '../engine/quality';
 import type { App } from './App';
 import { parseNames, persist, store } from './store';
@@ -264,7 +265,7 @@ export class UI {
 
   /** Device-wide preferences (not saved with wheels). */
   private initPrefs() {
-    const toggle = (id: string, key: 'sound' | 'music' | 'fx' | 'characters', apply: (on: boolean) => void) => {
+    const toggle = (id: string, key: 'sound' | 'music' | 'fx' | 'characters' | 'debug', apply: (on: boolean) => void) => {
       const input = $<HTMLInputElement>(id);
       input.checked = store[key];
       apply(store[key]);
@@ -281,6 +282,10 @@ export class UI {
     });
     toggle('fx', 'fx', (on) => this.app.stage.setFx(on));
     toggle('characters', 'characters', (on) => (this.app.charactersEnabled = on));
+    toggle('debug', 'debug', (on) => {
+      debug.enabled = on;
+      document.body.classList.toggle('debug', on);
+    });
 
     const graphics = $('graphics');
     const syncGraphics = () => {

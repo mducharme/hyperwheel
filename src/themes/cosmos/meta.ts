@@ -5,9 +5,11 @@ export const PALETTE = ['#8a7dff', '#ffb347', '#3d2a8a', '#ff6b6b', '#64ffda', '
 /** Everything the UI needs before the scene module itself is loaded. */
 export const meta: ThemeMeta = {
   id: 'cosmos',
+  order: 4,
   name: 'Event Horizon',
   emoji: '🪐',
   tagline: 'Black holes, warp speed and zero-g',
   ui: { accent: '#ffb347', accent2: '#8a7dff', accent3: '#64ffda' },
   palette: PALETTE,
+  font: { family: 'Orbitron', weight: 800 },
 };

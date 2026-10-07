@@ -1,6 +1,7 @@
 import * as THREE from 'three/webgpu';
 import { CELEBRATORY, sharedDances, type CharacterInstance } from './loader';
 import type { Part } from './rig';
+import { debug, dgroup } from '../debug';
 
 type V = [number, number, number];
 
@@ -143,7 +144,11 @@ export class Performer {
   private q = new THREE.Quaternion();
   private v = new THREE.Vector3();
 
-  constructor(private c: CharacterInstance) {
+  constructor(
+    private c: CharacterInstance,
+    /** Entry name, for the debug log. */
+    label = '',
+  ) {
     this.mixer = new THREE.AnimationMixer(c.object);
     this.captureRest();
 
@@ -153,9 +158,11 @@ export class Performer {
     const pool = [...own, ...sharedDances(c)];
     // real dances win most of the time; simple emotes/jumps share the stage with procedural routines
     const dancey = pool.some((clip) => /danc|salsa|flair|twerk|samba|step|groove|hip.?hop/i.test(clip.name));
-    const useClip = pool.length > 0 && (!c.rig.humanoid || Math.random() < (dancey ? 0.8 : 0.45));
+    const clipChance = !c.rig.humanoid ? 1 : dancey ? 0.8 : 0.45;
+    const useClip = pool.length > 0 && Math.random() < clipChance;
+    let chosen: THREE.AnimationClip | null = null;
     if (useClip) {
-      const clip = pool[Math.floor(Math.random() * pool.length)];
+      const clip = (chosen = pool[Math.floor(Math.random() * pool.length)]);
       this.mixer.clipAction(clip).reset().fadeIn(0.2).play();
       this.description = clip.name;
       // a little extra bounce on clips that don't move much (e.g. short emotes)
@@ -170,6 +177,60 @@ export class Performer {
       this.routine = (t) => ({ limbs: {}, lift: Math.abs(Math.sin(t * 5)) * 0.15, turn: Math.sin(t * 2) * 0.4 });
       this.description = 'bounce';
     }
+    if (debug.enabled) this.report(label, own, pool.length - own.length, clipChance, chosen);
+  }
+
+  /** Debug mode: explain what this character can do and why it's doing what it does. */
+  private report(label: string, own: THREE.AnimationClip[], borrowed: number, clipChance: number, chosen: THREE.AnimationClip | null) {
+    const c = this.c;
+    // how many of a clip's tracks find a node to animate in this model
+    const binding = (clip: THREE.AnimationClip) => {
+      const missing = new Set<string>();
+      let bound = 0;
+      for (const track of clip.tracks) {
+        const { nodeName } = THREE.PropertyBinding.parseTrackName(track.name);
+        if (THREE.PropertyBinding.findNode(c.object, nodeName)) bound++;
+        else missing.add(nodeName);
+      }
+      return { bound, total: clip.tracks.length, missing: [...missing] };
+    };
+    const kind = chosen ? (own.includes(chosen) ? 'its own clip' : 'a dance borrowed from another character') : this.description === 'bounce' ? 'a generic bounce' : 'a procedural routine';
+    dgroup('🕺 character', `${label ? `“${label}”: ` : ''}${c.id} → ${this.description} (${kind})`, (log) => {
+      let skinned = 0;
+      c.object.traverse((o) => void ((o as THREE.SkinnedMesh).isSkinnedMesh && skinned++));
+      log(`rig: ${c.rig.family}, ${c.rig.humanoid ? 'humanoid' : 'NOT recognised as humanoid'}; ${skinned} skinned mesh(es)`);
+
+      const parts = Object.entries(c.rig.bones);
+      const all: Part[] = ['hips', 'spine', 'chest', 'neck', 'head', 'leftUpperArm', 'leftLowerArm', 'leftHand', 'rightUpperArm', 'rightLowerArm', 'rightHand', 'leftUpperLeg', 'leftLowerLeg', 'leftFoot', 'rightUpperLeg', 'rightLowerLeg', 'rightFoot'];
+      console.table(Object.fromEntries(all.map((p) => { const b = c.rig.bones[p]; return [p, { node: b?.name ?? '✗ not found', bone: b ? ((b as THREE.Bone).isBone ? 'yes' : 'no (plain node)') : '' }]; })));
+      if (parts.length < 6) log('⚠️ few body parts were recognised from the bone names, so procedural routines have little to move');
+
+      if (!c.clips.length) log('clips in the file: none');
+      else {
+        log(`clips in the file (${c.clips.length}):`);
+        console.table(c.clips.map((clip) => { const b = binding(clip); return { name: clip.name, seconds: +clip.duration.toFixed(2), tracks: clip.tracks.length, connected: `${b.bound}/${b.total}`, celebration: own.includes(clip) ? 'yes' : '' }; }));
+      }
+      log(
+        c.celebrations
+          ? `celebration clips come from the pack's list: ${c.celebrations.join(', ')}`
+          : `celebration clips = clips whose name matches ${CELEBRATORY} → ${own.length ? own.map((x) => x.name).join(', ') : 'none'}`,
+      );
+      log(`borrowed dances: ${borrowed}${c.rig.family !== 'mixamo' ? ' (only Mixamo-style rigs can borrow dances)' : ''}`);
+      log(`choice: ${own.length + borrowed ? `${Math.round(clipChance * 100)}% chance of a clip, otherwise a procedural routine` : 'no usable clips, so a procedural routine'}`);
+
+      if (chosen) {
+        const b = binding(chosen);
+        log(`playing “${chosen.name}” (${chosen.duration.toFixed(1)}s): ${b.bound}/${b.total} tracks connect to this model`);
+        if (b.bound === 0) log(`⚠️ nothing will move: none of the clip's target names exist in the model (e.g. ${b.missing.slice(0, 4).join(', ')})`);
+        else if (b.bound < b.total) log(`⚠️ partly connected; missing targets: ${b.missing.slice(0, 8).join(', ')}${b.missing.length > 8 ? '…' : ''}`);
+        if (chosen.duration < 0.05) log('⚠️ the clip is (nearly) zero seconds long');
+      } else if (this.routine) {
+        const used = Object.keys(this.routine(0.5).limbs) as Part[];
+        const unmapped = used.filter((p) => !this.rest.has(p));
+        log(`routine moves: ${used.join(', ') || 'only the whole body (hop/turn)'}`);
+        if (unmapped.length) log(`⚠️ these parts weren't found, so they won't move: ${unmapped.join(', ')}`);
+      }
+    });
   }
 
   private captureRest() {

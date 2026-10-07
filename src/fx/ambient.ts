@@ -7,6 +7,7 @@ import * as THREE from 'three/webgpu';
 import { makeAtlas, shapes, type Atlas } from './atlas';
 import { Particles, type ParticleOptions } from './Particles';
 import { rand } from './util';
+import { dlog } from '../debug';
 import type { FrameState } from '../themes/types';
 
 type V3 = [number, number, number];
@@ -48,6 +49,7 @@ export function idleMoments(every: [number, number] = [7, 15]) {
       let i = Math.floor(Math.random() * moments.length);
       if (i === last && moments.length > 1) i = (i + 1) % moments.length;
       last = i;
+      dlog('✨ moment', `#${i + 1} of ${moments.length}`);
       moments[i]();
     },
   };

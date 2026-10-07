@@ -21,6 +21,8 @@ export interface Prefs {
   musicMix: boolean;
   /** Graphics quality (resolution + bloom); Auto adapts to the device. */
   graphics: QualityPref;
+  /** Debug mode: renderer/FPS badges and console logs (see src/debug.ts). */
+  debug: boolean;
 }
 
 /** Fields from before wheels moved to IndexedDB, read once for migration. */
@@ -35,7 +37,7 @@ export interface LegacyState {
   results?: { name: string; at: number }[];
 }
 
-const defaults: Prefs = { sound: true, music: true, fx: true, characters: true, currentWheel: null, packs: null, lastTheme: null, musicMix: false, graphics: 'auto' };
+const defaults: Prefs = { sound: true, music: true, fx: true, characters: true, currentWheel: null, packs: null, lastTheme: null, musicMix: false, graphics: 'auto', debug: false };
 
 const raw: (Prefs & LegacyState) | null = (() => {
   try {
@@ -53,8 +55,8 @@ export const legacy: LegacyState | null = raw && raw.text !== undefined ? raw : 
 
 export function persist() {
   try {
-    const { sound, music, fx, characters, currentWheel, packs, lastTheme, musicMix, graphics } = store;
-    localStorage.setItem(STORE_KEY, JSON.stringify({ sound, music, fx, characters, currentWheel, packs, lastTheme, musicMix, graphics }));
+    const { sound, music, fx, characters, currentWheel, packs, lastTheme, musicMix, graphics, debug } = store;
+    localStorage.setItem(STORE_KEY, JSON.stringify({ sound, music, fx, characters, currentWheel, packs, lastTheme, musicMix, graphics, debug }));
   } catch {
     /* private mode etc. */
   }

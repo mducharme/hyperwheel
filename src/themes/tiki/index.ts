@@ -266,8 +266,8 @@ export const tiki: Theme<TikiScene> = {
   ...meta,
   wheel: {
     palette: PALETTE,
-    font: '"Lilita One"',
-    fontWeight: 400,
+    font: `"${meta.font.family}"`,
+    fontWeight: meta.font.weight,
     rim: ['#c79a5a', '#2ec4b6'],
     holo: 0.2,
     flapper: '#ff8c42',

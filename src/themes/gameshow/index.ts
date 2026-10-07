@@ -226,8 +226,8 @@ export const gameshow: Theme<ShowScene> = {
   ...meta,
   wheel: {
     palette: PALETTE,
-    font: '"Righteous"',
-    fontWeight: 400,
+    font: `"${meta.font.family}"`,
+    fontWeight: meta.font.weight,
     rim: ['#ffd23f', '#ffffff'],
     holo: 0.25,
     flapper: '#ffd23f',

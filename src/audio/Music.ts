@@ -1,3 +1,4 @@
+import { dlog } from '../debug';
 import type { AudioBus } from './AudioBus';
 import { ChipSynth, type ChipSong } from './ChipSynth';
 
@@ -13,14 +14,24 @@ export interface ThemeMusic {
 
 type Kind = 'spin' | 'win';
 
+/** An uploaded audio file for this wheel. */
+export interface CustomFile {
+  id: string;
+  name?: string;
+  blob: Blob;
+}
+
 /** Something playable: a generated track URL or an uploaded file. */
 interface Source {
   key: string;
+  /** For the debug log: `synthwave/spin-3.mp3` or `upload “my song.mp3”`. */
+  label: string;
   load(): Promise<ArrayBuffer>;
 }
 
 interface Prepared {
   key: string;
+  label: string;
   promise: Promise<AudioBuffer | null>;
   /** Set once decoding settles (undefined = still working). */
   buffer?: AudioBuffer | null;
@@ -98,8 +109,8 @@ export class Music {
   }
 
   /** The wheel's uploaded files; they replace the scene's music while present. */
-  setCustom(spin: { id: string; blob: Blob }[], win: { id: string; blob: Blob }[]) {
-    const wrap = (f: { id: string; blob: Blob }): Source => ({ key: `upload:${f.id}`, load: () => f.blob.arrayBuffer() });
+  setCustom(spin: CustomFile[], win: CustomFile[]) {
+    const wrap = (f: CustomFile): Source => ({ key: `upload:${f.id}`, label: `upload “${f.name ?? f.id}”`, load: () => f.blob.arrayBuffer() });
     this.custom = { spin: spin.map(wrap), win: win.map(wrap) };
     this.refresh();
   }
@@ -118,6 +129,7 @@ export class Music {
       .filter((url) => !this.missing.has(url))
       .map((url) => ({
         key: url,
+        label: url.split('/music/')[1] ?? url,
         load: async () => {
           const res = await fetch(url);
           // dev servers answer missing files with index.html
@@ -150,6 +162,7 @@ export class Music {
     const src = choices[Math.floor(Math.random() * choices.length)];
     const prepared: Prepared = {
       key: src.key,
+      label: src.label,
       promise: this.decode(src).then((buffer) => {
         prepared.buffer = buffer;
         // a missing/broken file: quietly try another one
@@ -186,7 +199,12 @@ export class Music {
       if (buffer && prepared) {
         this.last.spin = prepared.key;
         this.play(buffer);
-      } else this.playChiptune();
+        dlog('🎵 music', 'spin song:', prepared.label);
+      } else {
+        this.playChiptune();
+        const why = !prepared ? 'no tracks for this scene' : prepared.buffer === null ? `${prepared.label} failed to load` : `${prepared.label} still decoding`;
+        dlog('🎵 music', `spin song: built-in synth (${why})`);
+      }
       this.prepare('spin'); // get the following one ready
     };
     if (!prepared) return go(null);
@@ -265,7 +283,12 @@ export class Music {
     if (!this.enabled || !ctx) return false;
     const prepared = this.next.win ?? this.prepare('win');
     const buffer = prepared?.buffer;
-    if (!prepared || !buffer) return false; // not decoded yet (or none): synth fanfare this time
+    if (!prepared || !buffer) {
+      // not decoded yet (or none): synth fanfare this time
+      dlog('🎺 music', `win sound: synth fanfare (${!prepared ? 'no win sounds for this scene' : prepared.buffer === null ? `${prepared.label} failed to load` : `${prepared.label} still decoding`})`);
+      return false;
+    }
+    dlog('🎺 music', 'win sound:', prepared.label);
     this.last.win = prepared.key;
     this.next.win = null;
     const src = ctx.createBufferSource();

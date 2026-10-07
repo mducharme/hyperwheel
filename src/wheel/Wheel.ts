@@ -42,7 +42,7 @@ export const PEG_R = R - 0.06;
 /** Everything a theme can restyle on the wheel. Colors are hex strings. */
 export interface WheelStyle {
   palette: string[];
-  /** CSS font-family for the names, e.g. '"Fredoka"'. Must be loaded in index.html. */
+  /** CSS font-family for the names, e.g. '"Fredoka"' (scenes take it from their meta font). */
   font: string;
   fontWeight?: number;
   /** Two-tone rim gradient… */

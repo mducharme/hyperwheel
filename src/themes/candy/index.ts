@@ -100,8 +100,8 @@ export const candy: Theme<CandyScene> = {
   ...meta,
   wheel: {
     palette: PALETTE,
-    font: '"Fredoka"',
-    fontWeight: 700,
+    font: `"${meta.font.family}"`,
+    fontWeight: meta.font.weight,
     rim: ['#ff6fb5', '#ffffff'],
     holo: 0.2,
     flapper: '#ff3d8b',

@@ -127,8 +127,8 @@ export const abyss: Theme = {
   ...meta,
   wheel: {
     palette: PALETTE,
-    font: '"Bungee"',
-    fontWeight: 400,
+    font: `"${meta.font.family}"`,
+    fontWeight: meta.font.weight,
     rim: ['#c08a3e', '#2fffd6'],
     holo: 0.3,
     flapper: '#ff7a59',

@@ -90,7 +90,7 @@ export class Showcase {
     inst.object.position.y -= inst.minY * this.scale;
     this.mover.add(inst.object);
     const [, { Performer }] = await runtime();
-    this.performer = new Performer(inst);
+    this.performer = new Performer(inst, name);
     this.current = { name, description: this.performer.description };
 
     const [x, y, z] = this.style.spot;

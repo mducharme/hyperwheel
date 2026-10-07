@@ -251,8 +251,8 @@ export const haunted: Theme<HauntedScene> = {
   ...meta,
   wheel: {
     palette: PALETTE,
-    font: '"Creepster"',
-    fontWeight: 400,
+    font: `"${meta.font.family}"`,
+    fontWeight: meta.font.weight,
     rim: ['#ff7a1a', '#5b2a86'],
     holo: 0.15,
     flapper: '#ff7a1a',

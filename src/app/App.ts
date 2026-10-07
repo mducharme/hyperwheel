@@ -5,6 +5,8 @@ import { CameraRig, type Insets } from '../engine/CameraRig';
 import { Spin, segmentAtPointer } from '../engine/physics';
 import { uSpeed, uWin } from '../engine/globals';
 import { Wheel, WHEEL_RADIUS } from '../wheel/Wheel';
+import { loadSceneFont } from '../themes/fonts';
+import { debug, dlog } from '../debug';
 import { Attract } from '../wheel/Attract';
 import { Pointer } from '../wheel/Pointer';
 import { AudioBus } from '../audio/AudioBus';
@@ -199,6 +201,7 @@ export class App {
     this.stage.setQuality(qualitySettings(this.quality));
     this.autoQuality.pause(2000);
     this.events.onQuality?.(this.quality);
+    dlog('⚙️ quality', `${this.quality}${this.qualityPref === 'auto' ? ' (auto)' : ''}`);
   }
 
   /** Run at full frame rate for at least `seconds` (spins, celebrations and input call this). */
@@ -305,12 +308,7 @@ export class App {
 
   private async stageTheme(theme: Theme<any>): Promise<StagedTheme> {
     const { renderer, camera } = this.stage;
-    try {
-      const w = theme.wheel;
-      await document.fonts.load(`${w.fontWeight ?? 700} 64px ${w.font}`);
-    } catch {
-      /* fall back to the default font */
-    }
+    await loadSceneFont(theme.font);
     // a private scene: themes set background/fog/environment on it, not on the live one
     const staging = new THREE.Scene();
     staging.environment = this.stage.scene.environment;
@@ -375,6 +373,7 @@ export class App {
       accent: theme.ui.accent,
     });
     performance.mark('hw:theme-built');
+    dlog('🎬 scene', `${theme.emoji} ${theme.name}`);
 
     if (!first) this.stage.triggerRipple(WHEEL_CENTER, 1.2, 1.2);
     this.wake(2); // crossfade + ripple
@@ -391,6 +390,7 @@ export class App {
     this.lastCelebration = i;
     const c = this.celebrations[i];
     c.play();
+    dlog('🎉 celebration', `“${c.name}” (${this.theme.name}, ${i + 1} of ${this.celebrations.length})`);
     this.wake(7);
     return c.name;
   }
@@ -406,6 +406,10 @@ export class App {
     this.bus.unlock();
     this.spin.launch(this.duration, direction, strength);
     this.autoQuality.spinStarted();
+    if (debug.enabled) {
+      const i = segmentAtPointer(this.spin.target, this.entries.length);
+      dlog('🎡 spin', `→ “${this.entries[i]?.name}” (#${i + 1} of ${this.entries.length}), ${this.duration}s`);
+    }
     // the result is decided at launch, so the winner's character can load during the spin
     if (this.charactersEnabled) {
       const winner = this.entries[segmentAtPointer(this.spin.target, this.entries.length)];
@@ -425,7 +429,9 @@ export class App {
     const entry = this.entries[index];
     this.events.onResult(entry.name, index, celebration);
     if (this.charactersEnabled) {
-      void this.showcase.present(this.characterFor(entry), entry.name).then((ok) => {
+      const characterId = this.characterFor(entry);
+      void this.showcase.present(characterId, entry.name).then((ok) => {
+        if (!ok) dlog('🕺 character', `“${entry.name}”: ${characterId} failed to load`);
         if (ok) this.wake(8); // entrance + first dance at full rate
         this.events.onCharacter?.(ok ? this.showcase.current : null);
       });

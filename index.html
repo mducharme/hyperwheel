@@ -26,9 +26,9 @@
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎡</text></svg>" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <!-- UI fonts + one display font per scene (used for the names on the wheel) -->
+    <!-- UI fonts; each scene loads its own wheel font when first shown (themes/fonts.ts) -->
     <link
-      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Unbounded:wght@600;800;900&family=Fredoka:wght@600;700&family=Bungee&family=Orbitron:wght@700;800&family=Creepster&family=Mountains+of+Christmas:wght@700&family=Lilita+One&family=Righteous&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Unbounded:wght@600;800;900&display=swap"
       rel="stylesheet"
     />
   </head>
@@ -156,6 +156,7 @@
             <button data-q="low" role="radio">Low</button>
           </div>
         </div>
+        <label class="check"><input id="debug" type="checkbox" /> Debug info <small class="muted">renderer badges + details in the console</small></label>
       </section>
     </aside>
 

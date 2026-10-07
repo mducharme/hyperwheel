@@ -54,6 +54,10 @@ export interface ThemeMeta {
   /** Panel accent colours (CSS). */
   ui: { accent: string; accent2: string; accent3: string };
   palette: string[];
+  /** Position in the scene list. */
+  order: number;
+  /** Google Font for the names on the wheel, loaded when the scene is first shown. */
+  font: { family: string; weight: number };
 }
 
 export interface Theme<S extends ThemeScene = ThemeScene> extends ThemeMeta {

@@ -1,13 +1,5 @@
 import type { Theme, ThemeMeta } from './types';
 import type { ThemeMusic } from '../audio/Music';
-import { meta as synthwave } from './synthwave/meta';
-import { meta as candy } from './candy/meta';
-import { meta as abyss } from './abyss/meta';
-import { meta as cosmos } from './cosmos/meta';
-import { meta as haunted } from './haunted/meta';
-import { meta as winter } from './winter/meta';
-import { meta as tiki } from './tiki/meta';
-import { meta as gameshow } from './gameshow/meta';
 import music from './music.json';
 
 export interface ThemeEntry extends ThemeMeta {
@@ -20,23 +12,34 @@ const once = <T>(fn: () => Promise<T>) => {
   return () => (p ??= fn());
 };
 
+// Every folder with a meta.ts + index.ts is a scene. Metadata is bundled (menus,
+// colours, fonts); each scene's code is its own chunk, fetched when first shown.
+const metas = import.meta.glob<ThemeMeta>('./*/meta.ts', { eager: true, import: 'meta' });
+const modules = import.meta.glob<Record<string, Theme<any>>>('./*/index.ts');
+
 /**
- * Theme registry. Only metadata is in the main bundle; each scene's code is
- * its own chunk, fetched when the scene is first shown (and prefetched when idle).
+ * Scene registry, built from the folders in src/themes.
  *
- * To add a scene: create `themes/<id>/meta.ts` + `themes/<id>/index.ts`
- * exporting a `Theme`, list it here, and optionally add tracks to `music.json`.
+ * To add a scene: create `themes/<id>/meta.ts` (exporting `meta`, with `id`
+ * matching the folder name) and `themes/<id>/index.ts` (exporting a `Theme`
+ * named after the id), and optionally add tracks to `music.json`.
  */
-export const THEMES: ThemeEntry[] = [
-  { ...synthwave, load: once(() => import('./synthwave').then((m) => m.synthwave)) },
-  { ...candy, load: once(() => import('./candy').then((m) => m.candy)) },
-  { ...abyss, load: once(() => import('./abyss').then((m) => m.abyss)) },
-  { ...cosmos, load: once(() => import('./cosmos').then((m) => m.cosmos)) },
-  { ...haunted, load: once(() => import('./haunted').then((m) => m.haunted)) },
-  { ...winter, load: once(() => import('./winter').then((m) => m.winter)) },
-  { ...tiki, load: once(() => import('./tiki').then((m) => m.tiki)) },
-  { ...gameshow, load: once(() => import('./gameshow').then((m) => m.gameshow)) },
-];
+export const THEMES: ThemeEntry[] = Object.entries(metas)
+  .map(([path, meta]) => {
+    const folder = path.split('/')[1];
+    const load = modules[`./${folder}/index.ts`];
+    if (meta.id !== folder) throw new Error(`themes/${folder}/meta.ts: id is "${meta.id}", expected "${folder}"`);
+    if (!load) throw new Error(`themes/${folder} has a meta.ts but no index.ts`);
+    return {
+      ...meta,
+      load: once(async () => {
+        const theme = (await load())[folder];
+        if (!theme) throw new Error(`themes/${folder}/index.ts must export a Theme named "${folder}"`);
+        return theme;
+      }),
+    };
+  })
+  .sort((a, b) => a.order - b.order);
 
 export const getTheme = (id: string): ThemeEntry => THEMES.find((t) => t.id === id) ?? THEMES[0];
 

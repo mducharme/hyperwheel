@@ -220,8 +220,8 @@ export const winter: Theme<WinterScene> = {
   ...meta,
   wheel: {
     palette: PALETTE,
-    font: '"Mountains of Christmas"',
-    fontWeight: 700,
+    font: `"${meta.font.family}"`,
+    fontWeight: meta.font.weight,
     rim: ['#e8f4ff', '#4cc9f0'],
     holo: 0.35,
     flapper: '#d62839',

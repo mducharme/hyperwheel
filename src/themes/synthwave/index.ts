@@ -97,8 +97,8 @@ export const synthwave: Theme = {
   ...meta,
   wheel: {
     palette: PALETTE,
-    font: '"Unbounded"',
-    fontWeight: 800,
+    font: `"${meta.font.family}"`,
+    fontWeight: meta.font.weight,
     rim: ['#ff2fd0', '#2fd8ff'],
     holo: 1,
     flapper: '#ff2fd0',
