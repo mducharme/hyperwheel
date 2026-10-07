@@ -6,7 +6,7 @@ export const LIMITS = {
   results: 200,
   duration: { min: 3, max: 20 },
 
-  /** .hyperwheel import */
+  /** .locospin import */
   importFileBytes: 300 * 1024 * 1024,
   manifestBytes: 2 * 1024 * 1024,
   importTotalBytes: 400 * 1024 * 1024,

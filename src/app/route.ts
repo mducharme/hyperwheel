@@ -1,6 +1,6 @@
 /**
  * Start-up links: `/<preset>` opens a bundled preset wheel (its file name
- * without `.hyperwheel`), and `#<scene>` starts in that scene — together:
+ * without `.locospin`), and `#<scene>` starts in that scene — together:
  * `/team-standup#pizza`. Share links (`#w=…`) are handled by the session.
  */
 import { THEMES } from '../themes';
@@ -26,4 +26,4 @@ export function showRoute(preset: string | undefined) {
   if (location.pathname + location.hash !== path) history.replaceState(null, '', path + location.search);
 }
 
-export const presetSlug = (file: string) => file.replace(/\.hyperwheel$/, '');
+export const presetSlug = (file: string) => file.replace(/\.locospin$/, '');

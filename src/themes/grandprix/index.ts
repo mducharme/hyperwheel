@@ -300,7 +300,7 @@ function makeBoards() {
   ctx.font = 'italic 900 118px "Racing Sans One", "Arial Black", sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('HYPERWHEEL GP', 512, 100);
+  ctx.fillText('LOCOSPIN GP', 512, 100);
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   // LED boards: they glow on their own at night
@@ -412,7 +412,7 @@ export const grandprix: Theme<RaceScene> = {
     hub: ['#e10600', '#1a1a1d'],
     pegs: '#f2f2f2',
     frame: '#121214',
-    tire: { text: 'HYPERWHEEL  •  GRAND PRIX', color: '#ffd400' },
+    tire: { text: 'LOCOSPIN  •  GRAND PRIX', color: '#ffd400' },
   },
   // night race: the floodlights, tail-lights and LED boards carry the bloom
   post: { bloom: [0.55, 0.4, 0.78], exposure: 1, aberration: 0.7, vignette: 0.55 },

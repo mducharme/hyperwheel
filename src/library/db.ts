@@ -2,7 +2,7 @@
  * Tiny promise wrapper around IndexedDB. Wheels, uploaded models and cached
  * thumbnails all live here — localStorage is far too small for binary assets.
  */
-const DB_NAME = 'hyperwheel';
+const DB_NAME = 'locospin';
 const VERSION = 1;
 export type StoreName = 'wheels' | 'assets' | 'thumbs';
 

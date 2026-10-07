@@ -35,7 +35,7 @@ export function initialAutoLevel(): QualityLevel {
   return matchMedia('(pointer: coarse)').matches ? 'medium' : 'high';
 }
 
-const STORAGE_KEY = 'hyperwheel:quality';
+const STORAGE_KEY = 'locospin:quality';
 /** After settling lower, wait this long before trying a higher level again. */
 const RETRY_AFTER = 7 * 24 * 3600 * 1000;
 

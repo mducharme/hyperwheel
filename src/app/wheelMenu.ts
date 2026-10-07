@@ -73,7 +73,7 @@ export class WheelMenu {
           await session.save();
           toast('Packing wheel…');
           const blob = await exportWheel(session.doc);
-          download(blob, `${session.doc.title.replace(/[^\w-]+/g, '-').toLowerCase() || 'wheel'}.hyperwheel`);
+          download(blob, `${session.doc.title.replace(/[^\w-]+/g, '-').toLowerCase() || 'wheel'}.locospin`);
           toast(`Exported (${(blob.size / 1e6).toFixed(1)} MB)`);
           break;
         }

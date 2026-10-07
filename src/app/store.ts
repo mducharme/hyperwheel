@@ -1,7 +1,7 @@
 import type { QualityPref } from '../engine/quality';
 import { LIMITS } from '../library/limits';
 
-const STORE_KEY = 'hyperwheel:v1';
+const STORE_KEY = 'locospin:v1';
 
 export const MAX_ENTRIES = LIMITS.entries;
 export const DEFAULT_NAMES = ['Ada', 'Grace', 'Linus', 'Margaret', 'Alan', 'Hedy', 'Tim', 'Katherine', 'Dennis', 'Barbara'];

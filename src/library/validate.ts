@@ -2,7 +2,7 @@ import { LIMITS } from './limits';
 import type { WheelSettings } from './wheels';
 
 /**
- * Turning untrusted data (an imported .hyperwheel file, later share links)
+ * Turning untrusted data (an imported .locospin file, later share links)
  * into wheel fields we can safely store and render. Everything is type-checked,
  * trimmed and clamped; anything unexpected is dropped rather than trusted.
  */

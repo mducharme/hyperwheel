@@ -13,8 +13,8 @@ export interface Preset {
   names: number;
 }
 
-// letters, digits, - and _ only: the name (without .hyperwheel) is also the preset's URL path
-const FILE = /^[\w-]+\.hyperwheel$/;
+// letters, digits, - and _ only: the name (without .locospin) is also the preset's URL path
+const FILE = /^[\w-]+\.locospin$/;
 const url = (path: string) => `${import.meta.env.BASE_URL}presets/${path}`;
 
 let cache: Promise<Preset[]> | null = null;

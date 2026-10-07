@@ -55,10 +55,10 @@ const app = new App(canvas, {
 ui = new UI(app);
 
 async function boot() {
-  performance.mark('hw:boot');
+  performance.mark('ls:boot');
   try {
     await app.init();
-    performance.mark('hw:renderer');
+    performance.mark('ls:renderer');
   } catch (err) {
     console.error(err);
     const el = document.getElementById('backend')!;
@@ -68,7 +68,7 @@ async function boot() {
   }
   ui.setBackend(app.stage.isWebGPU);
   const { fromLink, linkError } = await ui.init();
-  performance.mark('hw:scene');
+  performance.mark('ls:scene');
   app.start();
   // after the first frame: fetch the other scenes and the character loaders while idle
   const later = (fn: () => void) => ('requestIdleCallback' in window ? requestIdleCallback(fn, { timeout: 3000 }) : setTimeout(fn, 1500));

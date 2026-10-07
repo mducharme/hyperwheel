@@ -1,4 +1,4 @@
-# HyperWheel
+# LocoSpin
 
 A 3D wheel of names with switchable scenes, built with three.js `WebGPURenderer` and TSL node shaders. It falls back to WebGL2 automatically.
 
@@ -29,7 +29,7 @@ Everything is stored locally in your browser (IndexedDB). There's no account and
 
 - **Wheels:** the ⋯ menu next to the wheel name has New, Open, Duplicate, Export, Import, Share link and Delete.
   - **Autosave:** every change is saved automatically.
-  - **Export** writes one `.hyperwheel` file (a zip) containing the names, settings and every uploaded model and audio file. Import it on another device to get the whole wheel back.
+  - **Export** writes one `.locospin` file (a zip) containing the names, settings and every uploaded model and audio file. Import it on another device to get the whole wheel back.
   - **Share link** puts the names, built-in characters and settings in the URL. Uploaded files can't fit in a link, so use Export for those.
 - **Characters:** on the Entries tab, switch to **Characters** to pick a character for each name. The picker has a search box. Uploaded models are preloaded in the background after startup, so their dance clips are shared between all your Mixamo-rigged characters from the first spin.
   - **Upload** rigged humanoid `.glb` (Draco and meshopt compression supported) or `.fbx` files. Mixamo rigs work best.
@@ -81,7 +81,7 @@ src/
   main.ts            boot: App + UI
   app/               App (frame loop, spin flow, theme switching), UI modules (session, wheel menu,
                      entries/characters view, audio panel), DragSpin, prefs store
-  library/           IndexedDB, content-addressed assets, wheel documents, .hyperwheel export/import, share links
+  library/           IndexedDB, content-addressed assets, wheel documents, .locospin export/import, share links
   characters/        loaders (glTF/Draco/meshopt/FBX), rig mapping, Performer (clips + procedural moves),
                      Showcase (themed entrances), thumbnails, built-in catalog
   engine/            Stage (renderer + post: ripple, bloom, aberration, flash), CameraRig, physics, globals

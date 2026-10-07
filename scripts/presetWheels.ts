@@ -1,10 +1,10 @@
 /**
- * Preset wheels: .hyperwheel files bundled into the site at build time.
+ * Preset wheels: .locospin files bundled into the site at build time.
  *
  * They're read from `PRESET_WHEELS_URL` (any static host: an S3 bucket, a CDN,
  * a GitHub raw folder…) which must serve an `index.json` listing the files —
- * either `["team.hyperwheel", …]` or `{ "wheels": [ … ] }` — next to the files
- * themselves. Without the variable, `presets/*.hyperwheel` in the repo is used.
+ * either `["team.locospin", …]` or `{ "wheels": [ … ] }` — next to the files
+ * themselves. Without the variable, `presets/*.locospin` in the repo is used.
  *
  * The site gets `presets/index.json` (file, title, number of names, scene) and
  * the files under `presets/`, so nothing is fetched from the bucket at runtime:
@@ -15,8 +15,8 @@ import { existsSync } from 'node:fs';
 import { readdir, readFile } from 'node:fs/promises';
 import { strFromU8, unzipSync } from 'fflate';
 
-// letters, digits, - and _ only: the name (without .hyperwheel) is also the preset's URL path
-const FILE = /^[\w-]+\.hyperwheel$/;
+// letters, digits, - and _ only: the name (without .locospin) is also the preset's URL path
+const FILE = /^[\w-]+\.locospin$/;
 const MAX_BYTES = 64 * 1024 * 1024;
 const LOCAL_DIR = 'presets';
 
@@ -36,7 +36,7 @@ async function fetchRemote(url: string) {
   const files = new Map<string, Uint8Array>();
   for (const name of list) {
     if (typeof name !== 'string' || !FILE.test(name)) {
-      console.warn(`[presets] skipping ${JSON.stringify(name)}: expected a file name like team-standup.hyperwheel (letters, digits, - and _)`);
+      console.warn(`[presets] skipping ${JSON.stringify(name)}: expected a file name like team-standup.locospin (letters, digits, - and _)`);
       continue;
     }
     const r = await fetch(new URL(name, base));
@@ -63,10 +63,11 @@ function describe(file: string, bytes: Uint8Array): PresetInfo | null {
     const raw = unzipSync(bytes, { filter: (f) => f.name === 'wheel.json' })['wheel.json'];
     const manifest = JSON.parse(strFromU8(raw));
     const w = manifest?.wheel ?? {};
-    if (manifest?.format !== 'hyperwheel') throw new Error('not a HyperWheel file');
+    // 'hyperwheel' is the format tag from before the rename
+    if (manifest?.format !== 'locospin' && manifest?.format !== 'hyperwheel') throw new Error('not a LocoSpin file');
     return {
       file,
-      title: String(w.title ?? file.replace(/\.hyperwheel$/, '')).slice(0, 60),
+      title: String(w.title ?? file.replace(/\.locospin$/, '')).slice(0, 60),
       names: Array.isArray(w.entries) ? w.entries.length : 0,
       theme: typeof w.settings?.theme === 'string' ? w.settings.theme : undefined,
     };
@@ -95,7 +96,7 @@ export function presetWheels(url: string | undefined): Plugin {
   };
 
   return {
-    name: 'hyperwheel-presets',
+    name: 'locospin-presets',
     async buildStart() {
       ready = collect();
       await ready;

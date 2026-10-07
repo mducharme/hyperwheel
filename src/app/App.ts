@@ -370,7 +370,7 @@ export class App {
       entrance: theme.character?.entrance ?? 'beam',
       accent: theme.ui.accent,
     });
-    performance.mark('hw:theme-built');
+    performance.mark('ls:theme-built');
     dlog('🎬 scene', `${theme.emoji} ${theme.name}`);
 
     if (!first) this.stage.triggerRipple(WHEEL_CENTER, 1.2, 1.2);
@@ -487,7 +487,7 @@ export class App {
     else this.fadeCover();
     if (!this.firstFrame) {
       this.firstFrame = true;
-      performance.mark('hw:first-frame');
+      performance.mark('ls:first-frame');
       this.events.onFirstFrame?.();
     }
     if (this.thumbRequests.length) this.grabThumbnail();

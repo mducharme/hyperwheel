@@ -107,10 +107,10 @@ export function reconcile(entries: Entry[], names: string[]): Entry[] {
   return names.map((name) => pool.get(name)?.shift() ?? { id: uid(), name });
 }
 
-// ------------------------------------------------------------------ export / import (.hyperwheel = zip)
+// ------------------------------------------------------------------ export / import (.locospin = zip)
 
 interface Manifest {
-  format: 'hyperwheel';
+  format: 'locospin';
   version: 1;
   wheel: WheelDoc;
   assets: { id: string; name: string; type: string; path: string }[];
@@ -120,7 +120,7 @@ interface Manifest {
 export async function exportWheel(w: WheelDoc): Promise<Blob> {
   const { strToU8, zipSync } = await zip();
   const files: Record<string, Uint8Array> = {};
-  const manifest: Manifest = { format: 'hyperwheel', version: 1, wheel: { ...w, thumb: undefined, preset: undefined }, assets: [] };
+  const manifest: Manifest = { format: 'locospin', version: 1, wheel: { ...w, thumb: undefined, preset: undefined }, assets: [] };
   for (const id of wheelModels(w)) {
     const a = await getAsset(id);
     if (!a) continue;
@@ -143,7 +143,7 @@ export interface ImportReport {
 const mb = (bytes: number) => `${Math.round(bytes / 1024 / 1024)} MB`;
 
 /**
- * Import a .hyperwheel file as a new wheel (its files are added to the library).
+ * Import a .locospin file (or an older .hyperwheel one) as a new wheel (its files are added to the library).
  *
  * The file is untrusted (someone sent it), so: sizes are capped before and
  * during unzipping (declared sizes are checked before anything is inflated,
@@ -174,18 +174,19 @@ export async function importWheel(file: Blob): Promise<ImportReport> {
       },
     });
   } catch {
-    throw new Error('This file is damaged or is not a HyperWheel file.');
+    throw new Error('This file is damaged or is not a LocoSpin file.');
   }
 
   const raw = files['wheel.json'];
-  if (!raw) throw new Error('Not a HyperWheel file (wheel.json is missing or too large).');
+  if (!raw) throw new Error('Not a LocoSpin file (wheel.json is missing or too large).');
   let manifest: unknown;
   try {
     manifest = JSON.parse(strFromU8(raw));
   } catch {
-    throw new Error('This HyperWheel file is damaged (its wheel.json is not valid).');
+    throw new Error('This LocoSpin file is damaged (its wheel.json is not valid).');
   }
-  if (!isObject(manifest) || manifest.format !== 'hyperwheel') throw new Error('Not a HyperWheel file.');
+  // 'hyperwheel' files were exported before the rename
+  if (!isObject(manifest) || (manifest.format !== 'locospin' && manifest.format !== 'hyperwheel')) throw new Error('Not a LocoSpin file.');
 
   // Store bundled files one by one; anything odd is skipped, not fatal.
   // Ids are content hashes, so a file's claimed id is only used to find references to it.
