@@ -3,18 +3,24 @@ import {
   abs,
   atan,
   attribute,
+  cos,
   dot,
   float,
+  floor,
   fract,
+  hash,
   instancedBufferAttribute,
+  instanceIndex,
   length,
   max,
   mix,
   mx_noise_float,
   normalLocal,
   normalView,
+  positionGeometry,
   positionLocal,
   positionViewDirection,
+  positionWorld,
   pow,
   sin,
   smoothstep,
@@ -23,6 +29,7 @@ import {
   time,
   uniform,
   uv,
+  vec2,
   vec3,
 } from 'three/tsl';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -56,6 +63,30 @@ export interface WheelStyle {
   pegs: string;
   /** Backing plate / marquee frame. */
   frame: string;
+  /** Ship's helm: turned wooden handles around a wooden rim, and no marquee bulbs. */
+  helm?: { handles: number; wood: string };
+  /** Racing tyre instead of the chrome rim: lettering on the sidewall, a coloured compound band, no marquee bulbs. */
+  tire?: { text: string; color: string };
+  /** A pine wreath with berries instead of the chrome rim. */
+  wreath?: { berries: string };
+  /** Chunky multicoloured string lights instead of the marquee bulbs. */
+  stringLights?: string[];
+  /** Pins on the wheel face: metal pins (default) or Christmas baubles. */
+  pins?: 'baubles' | 'skulls' | 'gumdrops' | 'pearls' | 'stars';
+  /** The pointer: the glossy teardrop (default) or an icicle. */
+  pointer?: 'icicle' | 'scythe' | 'candycane' | 'anchor' | 'comet';
+  /** A frosted donut instead of the chrome rim. */
+  donut?: { frosting: string; sprinkles: string[] };
+  /** Rivets around the rim, ship's-porthole style (pair with brass rim colours). */
+  rivets?: boolean;
+  /** Glowing bubbles instead of the marquee bulbs. */
+  bubbles?: boolean;
+  /** The rim as a ring of swirling plasma (hot and cool colours) instead of chrome. */
+  plasmaRim?: { hot: string; cool: string };
+  /** Flickering candles instead of the marquee bulbs. */
+  candles?: boolean;
+  /** The rim as twisted, matte dark wood instead of chrome. */
+  rimFinish?: 'gnarled';
 }
 
 /** Name color on light segments. */
@@ -95,7 +126,80 @@ export class Wheel {
   private pegs: THREE.InstancedMesh | null = null;
   private pegGeo = new THREE.CylinderGeometry(0.045, 0.055, 0.26, 12).rotateX(Math.PI / 2);
   private pegMat: THREE.MeshStandardNodeMaterial;
+  /** Christmas-bauble pins: a shiny ball with a little gold cap (colour per instance). */
+  private baubleGeo = mergeGeometries([new THREE.SphereGeometry(0.08, 16, 12), new THREE.CylinderGeometry(0.025, 0.025, 0.05, 8).rotateX(Math.PI / 2).translate(0, 0, 0.085)])!;
+  private baubleMat = new THREE.MeshStandardNodeMaterial({ metalness: 0.55, roughness: 0.12 });
+  /** Little skull pins: a cranium and a jaw, eye sockets and nose painted in by the material. */
+  private skullGeo = mergeGeometries([new THREE.SphereGeometry(0.085, 16, 12).scale(1, 0.95, 0.85), new THREE.BoxGeometry(0.1, 0.06, 0.1).translate(0, -0.075, 0.005)])!.scale(1.3, 1.3, 1.3);
+  private skullMat = (() => {
+    const m = new THREE.MeshStandardNodeMaterial({ roughness: 0.55 });
+    const p = positionGeometry.div(1.3); // the face was drawn for the unscaled skull
+    const eye = (x: number) => smoothstep(0.024, 0.016, length(vec2(p.x.sub(x), p.y.sub(0.002))));
+    const front = smoothstep(0.03, 0.06, p.z);
+    const nose = smoothstep(0.014, 0.008, length(vec2(p.x, p.y.add(0.035))));
+    const teeth = step(0.5, fract(p.x.mul(60))).mul(smoothstep(-0.07, -0.062, p.y)).mul(smoothstep(-0.05, -0.058, p.y));
+    const dark = eye(-0.03).max(eye(0.03)).max(nose).mul(front).max(teeth.mul(0.6));
+    m.colorNode = mix(vec3(0.86, 0.82, 0.7), vec3(0.05, 0.03, 0.05), dark);
+    return m;
+  })();
+  /** Sugar-dusted gumdrop pins (colour per instance). */
+  private gumdropGeo = new THREE.SphereGeometry(0.12, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, 1.15, 1).rotateX(Math.PI / 2);
+  private gumdropMat = (() => {
+    const m = new THREE.MeshStandardNodeMaterial({ roughness: 0.7 });
+    m.emissiveNode = vec3(step(0.96, hash(floor(positionGeometry.mul(90)).dot(vec3(1, 57, 113)))).mul(0.6)); // sugar glints
+    return m;
+  })();
+  /** Lustrous pearl pins. */
+  private pearlGeo = new THREE.SphereGeometry(0.075, 18, 12);
+  private pearlMat = (() => {
+    const m = new THREE.MeshStandardNodeMaterial({ roughness: 0.18, metalness: 0.15 });
+    const fres = pow(float(1).sub(abs(dot(normalView, positionViewDirection))), 2.0);
+    m.colorNode = vec3(0.93, 0.91, 0.88).add(iridescent(fres.mul(1.5)).mul(0.18));
+    return m;
+  })();
+  /** Little glowing star pins. */
+  private starGeo = new THREE.OctahedronGeometry(0.075, 0).scale(1, 1, 0.45);
+  private starMat = (() => {
+    const m = new THREE.MeshStandardNodeMaterial({ roughness: 0.3 });
+    m.colorNode = vec3(1, 0.93, 0.75);
+    m.emissiveNode = vec3(1, 0.85, 0.55).mul(sin(time.mul(3).add(positionWorld.x.mul(5))).mul(0.4).add(1.2));
+    return m;
+  })();
+  /** Pin shapes: geometry, material, height off the face, per-pin colours, upright toward the rim. */
+  private get pinKinds(): Record<string, { geo: THREE.BufferGeometry; mat: THREE.Material; z: number; colors?: string[]; upright?: boolean }> {
+    return {
+      pins: { geo: this.pegGeo, mat: this.pegMat, z: 0.11 },
+      baubles: { geo: this.baubleGeo, mat: this.baubleMat, z: 0.09, colors: ['#d62839', '#f2c230', '#dfe6ee'] },
+      skulls: { geo: this.skullGeo, mat: this.skullMat, z: 0.07, upright: true },
+      gumdrops: { geo: this.gumdropGeo, mat: this.gumdropMat, z: 0.02, colors: ['#ff5d8f', '#5ee6c8', '#ffd166', '#b388ff', '#ff9e5e'] },
+      pearls: { geo: this.pearlGeo, mat: this.pearlMat, z: 0.07 },
+      stars: { geo: this.starGeo, mat: this.starMat, z: 0.07 },
+    };
+  }
   private textCanvas = document.createElement('canvas');
+  /** Marquee bulbs and their frame (hidden for a helm). */
+  private marquee = new THREE.Group();
+  private rimMat!: THREE.MeshStandardNodeMaterial;
+  private helm: THREE.Mesh | null = null;
+  private chromeRim!: THREE.Mesh;
+  private tire: THREE.Mesh | null = null;
+  private tireKey = '';
+  private wreath: THREE.Group | null = null;
+  private lights: THREE.Group | null = null;
+  private lightsKey = '';
+  private flapperDefault: THREE.Object3D[] = [];
+  /** Special pointer shapes, built on first use. */
+  private pointers = new Map<string, THREE.Object3D>();
+  private candles: THREE.Group | null = null;
+  /** Optional decorations by slot, with the key they were built for. */
+  private decorations = new Map<string, { key: string; object: THREE.Object3D }>();
+  private helmKey = '';
+  private readonly uWood = col();
+  private readonly uTireColor = col();
+  private readonly uBerry = col();
+  private readonly uGnarl = uniform(0);
+  /** Base brightness of the rim: high for chrome, low for wood. */
+  private readonly uRimLift = uniform(0.35);
   private textTex: THREE.CanvasTexture;
 
   constructor() {
@@ -117,6 +221,7 @@ export class Wheel {
     this.buildHub();
     this.buildLeds();
     this.buildFlapper();
+    this.root.add(this.marquee);
   }
 
   setStyle(style: WheelStyle) {
@@ -131,6 +236,19 @@ export class Wheel {
     this.uHubB.value.set(style.hub[1]);
     this.uPegs.value.set(style.pegs);
     this.uFrame.value.set(style.frame);
+    this.applyHelm(style.helm);
+    this.applyTire(style.tire);
+    this.applyWreath(style.wreath);
+    this.applyStringLights(style.stringLights);
+    this.applyPointer(style.pointer);
+    this.applyCandles(!!style.candles);
+    this.decorate('donut', style.donut && JSON.stringify(style.donut), () => this.makeDonut(style.donut!), this.spinner);
+    this.decorate('rivets', style.rivets ? 'on' : undefined, () => this.makeRivets(), this.spinner);
+    this.decorate('bubbles', style.bubbles ? 'on' : undefined, () => this.makeBubbles(), this.root);
+    this.decorate('plasmaRim', style.plasmaRim && JSON.stringify(style.plasmaRim), () => this.makePlasmaRim(style.plasmaRim!), this.spinner);
+    this.applyRimFinish(style.rimFinish);
+    this.chromeRim.visible = !style.tire && !style.wreath && !style.donut && !style.plasmaRim;
+    this.marquee.visible = !style.helm && !style.tire && !style.stringLights && !style.candles && !style.bubbles;
     this.setEntries(this.names);
   }
 
@@ -303,13 +421,18 @@ export class Wheel {
     // Too many pegs turn into a picket fence; thin them out.
     const stride = Math.ceil(count / 90);
     const total = Math.floor(count / stride);
-    const mesh = new THREE.InstancedMesh(this.pegGeo, this.pegMat, total);
+    const kind = this.pinKinds[this.style?.pins ?? 'pins'];
+    const mesh = new THREE.InstancedMesh(kind.geo, kind.mat, total);
     const m = new THREE.Matrix4();
     const seg = (Math.PI * 2) / count;
+    const shades = kind.colors?.map((c) => new THREE.Color(c));
     for (let j = 0; j < total; j++) {
       const a = j * stride * seg;
-      m.makeTranslation(Math.cos(a) * PEG_R, Math.sin(a) * PEG_R, this.frontZ + 0.11);
+      m.makeTranslation(Math.cos(a) * PEG_R, Math.sin(a) * PEG_R, this.frontZ + kind.z);
+      // shaped pins stand upright relative to the rim, top outward
+      if (kind.upright) m.multiply(new THREE.Matrix4().makeRotationZ(a - Math.PI / 2));
       mesh.setMatrixAt(j, m);
+      if (shades) mesh.setColorAt(j, shades[j % shades.length]);
     }
     this.pegs = mesh;
     this.spinner.add(mesh);
@@ -325,15 +448,19 @@ export class Wheel {
   // ---------------------------------------------------------------- decor
 
   private buildRim() {
-    const mat = new THREE.MeshStandardNodeMaterial({ metalness: 0.95, roughness: 0.16 });
+    const mat = (this.rimMat = new THREE.MeshStandardNodeMaterial({ metalness: 0.95, roughness: 0.16 }));
     const fres = pow(float(1).sub(abs(dot(normalView, positionViewDirection))), 2.0);
     const ang = atan(positionLocal.y, positionLocal.x).div(Math.PI * 2);
     const holo = iridescent(ang.mul(2).add(time.mul(0.12)).add(fres.mul(0.6)));
     const twoTone = mix(this.uRimA, this.uRimB, sin(ang.mul(Math.PI * 8).add(time)).mul(0.5).add(0.5));
     const rimCol = mix(twoTone, holo, this.uHolo);
-    mat.colorNode = rimCol.mul(0.55).add(0.35);
+    // gnarled finish: knotty bumps pushed out along the normal, darker in the grooves
+    const knots = mx_noise_float(positionLocal.mul(vec3(3.2, 3.2, 9))).mul(0.5).add(0.5);
+    mat.positionNode = positionLocal.add(normalLocal.mul(knots.sub(0.5).mul(0.11).mul(this.uGnarl)));
+    mat.colorNode = rimCol.mul(float(0.9).sub(this.uRimLift)).add(this.uRimLift).mul(mix(float(1), knots.mul(0.6).add(0.55), this.uGnarl));
     mat.emissiveNode = rimCol.mul(fres.mul(0.9).add(this.uSpeed.mul(0.02)).add(this.uWin.mul(0.8)));
-    this.spinner.add(new THREE.Mesh(new THREE.TorusGeometry(RIM_R, 0.15, 32, 256), mat));
+    this.chromeRim = new THREE.Mesh(new THREE.TorusGeometry(RIM_R, 0.15, 32, 256), mat);
+    this.spinner.add(this.chromeRim);
 
     // dark backing plate so the wheel reads as a solid object from oblique angles
     const backMat = new THREE.MeshStandardNodeMaterial({ metalness: 0.6, roughness: 0.4 });
@@ -370,29 +497,38 @@ export class Wheel {
     this.spinner.add(face);
   }
 
+  /**
+   * How bright a bulb at `phase` (0..1 around the ring) is right now: chasing
+   * with the spin, an attract-mode light show while idle, a strobe on a win.
+   * `alt` (0/1) splits the ring into alternating bulbs.
+   */
+  private bulbBrightness(phase: any, alt: any) {
+    const chase = fract(phase.mul(8).sub(this.uChase));
+    const lit = smoothstep(0.55, 1, chase);
+    const strobe = step(0.5, fract(time.mul(6))).mul(this.uWin);
+    // attract mode: two lights circling opposite ways, alternating with a marquee blink
+    const comets = max(pow(fract(phase.sub(time.mul(0.36))), 16), pow(fract(phase.negate().sub(time.mul(0.36)).add(0.5)), 16));
+    const blink = mix(alt, float(1).sub(alt), step(0.5, fract(time.mul(1.1)))).mul(0.8);
+    const show = mix(comets, blink, smoothstep(-0.3, 0.3, sin(time.mul(0.45))));
+    return max(mix(lit, show, this.uAttract).mul(3.2).add(0.15), strobe.mul(5));
+  }
+
   private buildLeds() {
     // static marquee ring with chasing bulbs, carnival style
     const frameMat = new THREE.MeshStandardNodeMaterial({ metalness: 0.9, roughness: 0.3 });
     frameMat.colorNode = this.uFrame.mul(1.6);
     const frame = new THREE.Mesh(new THREE.TorusGeometry(LED_R, 0.09, 20, 256), frameMat);
     frame.position.z = -0.05;
-    this.root.add(frame);
+    this.marquee.add(frame);
 
     const phases = new Float32Array(LED_COUNT);
     for (let i = 0; i < LED_COUNT; i++) phases[i] = i / LED_COUNT;
     const phase: any = instancedBufferAttribute(new THREE.InstancedBufferAttribute(phases, 1), 'float');
 
     const mat = new THREE.MeshStandardNodeMaterial({ roughness: 0.2, metalness: 0 });
-    const chase = fract(phase.mul(8).sub(this.uChase));
-    const lit = smoothstep(0.55, 1, chase);
-    const strobe = step(0.5, fract(time.mul(6))).mul(this.uWin);
     const alt = step(0.5, fract(phase.mul(LED_COUNT / 2)));
     const bulb = mix(this.uLedA, this.uLedB, alt);
-    // attract mode: two lights circling opposite ways, alternating with a marquee blink
-    const comets = max(pow(fract(phase.sub(time.mul(0.36))), 16), pow(fract(phase.negate().sub(time.mul(0.36)).add(0.5)), 16));
-    const blink = mix(alt, float(1).sub(alt), step(0.5, fract(time.mul(1.1)))).mul(0.8);
-    const show = mix(comets, blink, smoothstep(-0.3, 0.3, sin(time.mul(0.45))));
-    const bright = max(mix(lit, show, this.uAttract).mul(3.2).add(0.15), strobe.mul(5));
+    const bright = this.bulbBrightness(phase, alt);
     mat.colorNode = bulb.mul(0.3);
     mat.emissiveNode = mix(bulb, vec3(1, 0.95, 0.85), this.uWin.mul(0.5)).mul(bright);
 
@@ -403,7 +539,567 @@ export class Wheel {
       m.makeTranslation(Math.cos(a) * LED_R, Math.sin(a) * LED_R, 0.06);
       leds.setMatrixAt(i, m);
     }
-    this.root.add(leds);
+    this.marquee.add(leds);
+  }
+
+  /** A pine wreath around the slices instead of the chrome rim (it turns with the wheel). */
+  private applyWreath(wreath: WheelStyle['wreath']) {
+    if (!!wreath === !!this.wreath) {
+      if (wreath) this.uBerry.value.set(wreath.berries);
+      return;
+    }
+    if (this.wreath) {
+      this.spinner.remove(this.wreath);
+      this.wreath.traverse((o) => {
+        const mesh = o as THREE.Mesh;
+        if (mesh.isMesh) {
+          mesh.geometry.dispose();
+          (mesh.material as THREE.Material).dispose();
+        }
+      });
+      this.wreath = null;
+    }
+    if (!wreath) return;
+    this.uBerry.value.set(wreath.berries);
+    const g = new THREE.Group();
+    const ringR = RIM_R + 0.06;
+    const tube = 0.23;
+    const base = new THREE.Mesh(new THREE.TorusGeometry(ringR, tube, 16, 200), new THREE.MeshStandardNodeMaterial({ color: '#173d24', roughness: 0.9 }));
+    g.add(base);
+
+    // needle tufts sticking out of the garland, frosted at the tips
+    const tufts = 2000;
+    const needleMat = new THREE.MeshStandardNodeMaterial({ roughness: 0.85, flatShading: true });
+    const tip = smoothstep(0.02, 0.15, positionGeometry.y);
+    const shade = hash(instanceIndex).mul(0.35).add(0.75);
+    needleMat.colorNode = mix(vec3(0.07, 0.25, 0.13).mul(shade), vec3(0.86, 0.93, 0.97), tip.mul(0.75));
+    const needles = new THREE.InstancedMesh(new THREE.ConeGeometry(0.055, 0.36, 5), needleMat, tufts);
+    const m = new THREE.Matrix4();
+    const q = new THREE.Quaternion();
+    const up = new THREE.Vector3(0, 1, 0);
+    const p = new THREE.Vector3();
+    const n = new THREE.Vector3();
+    for (let i = 0; i < tufts; i++) {
+      const a = Math.random() * Math.PI * 2;
+      // around the tube: the front and the outer edge (not the inner edge, so none poke over the names)
+      const v = -Math.PI * 0.35 + Math.random() * Math.PI * 0.95;
+      n.set(Math.cos(v) * Math.cos(a), Math.cos(v) * Math.sin(a), Math.sin(v));
+      p.set(Math.cos(a) * ringR, Math.sin(a) * ringR, 0).addScaledVector(n, tube * 0.75);
+      n.x += (Math.random() - 0.5) * 1.1;
+      n.y += (Math.random() - 0.5) * 1.1;
+      n.z += (Math.random() - 0.5) * 0.8;
+      q.setFromUnitVectors(up, n.normalize());
+      const s = 0.8 + Math.random() * 0.7;
+      m.compose(p.clone().addScaledVector(n, 0.1 * s), q, new THREE.Vector3(s, s, s));
+      needles.setMatrixAt(i, m);
+    }
+    g.add(needles);
+
+    // clusters of three berries on the front of the wreath
+    const berryMat = new THREE.MeshStandardNodeMaterial({ roughness: 0.25, metalness: 0.1 });
+    berryMat.colorNode = this.uBerry;
+    berryMat.emissiveNode = this.uBerry.mul(0.15);
+    const clusters = 18;
+    const berries = new THREE.InstancedMesh(new THREE.SphereGeometry(0.06, 12, 8), berryMat, clusters * 3);
+    for (let c = 0; c < clusters; c++) {
+      const a = ((c + 0.5) / clusters) * Math.PI * 2;
+      for (let k = 0; k < 3; k++) {
+        const b = a + (k - 1) * 0.022;
+        const r = ringR + (k === 1 ? 0.07 : -0.02);
+        m.makeTranslation(Math.cos(b) * r, Math.sin(b) * r, tube + 0.04);
+        berries.setMatrixAt(c * 3 + k, m);
+      }
+    }
+    g.add(berries);
+    this.wreath = g;
+    this.spinner.add(g);
+  }
+
+  /** Chunky glass bulbs on a wire, each its own colour, in place of the marquee ring. */
+  private applyStringLights(colors: WheelStyle['stringLights']) {
+    const key = colors?.join() ?? '';
+    if (key === this.lightsKey) return;
+    this.lightsKey = key;
+    if (this.lights) {
+      this.root.remove(this.lights);
+      this.lights.traverse((o) => {
+        const mesh = o as THREE.Mesh;
+        if (mesh.isMesh) {
+          mesh.geometry.dispose();
+          (mesh.material as THREE.Material).dispose();
+        }
+      });
+      this.lights = null;
+    }
+    if (!colors?.length) return;
+    const g = new THREE.Group();
+    const wire = new THREE.Mesh(new THREE.TorusGeometry(LED_R, 0.025, 8, 256), new THREE.MeshStandardNodeMaterial({ color: '#15301c', roughness: 0.6 }));
+    wire.position.z = -0.02;
+    g.add(wire);
+
+    const count = 40;
+    const phases = new Float32Array(count);
+    const tints = new Float32Array(count * 3);
+    const c = new THREE.Color();
+    for (let i = 0; i < count; i++) {
+      phases[i] = i / count;
+      c.set(colors[i % colors.length]);
+      tints.set([c.r, c.g, c.b], i * 3);
+    }
+    const phase: any = instancedBufferAttribute(new THREE.InstancedBufferAttribute(phases, 1), 'float');
+    const tint: any = instancedBufferAttribute(new THREE.InstancedBufferAttribute(tints, 3), 'vec3');
+    const alt = step(0.5, fract(phase.mul(count / 2)));
+    // each bulb also twinkles on its own a little, like real fairy lights
+    const twinkle = sin(time.mul(2.3).add(phase.mul(97))).mul(0.18).add(0.9);
+    const bright = this.bulbBrightness(phase, alt).mul(0.75).add(0.5).mul(twinkle);
+    const glass = new THREE.MeshStandardNodeMaterial({ roughness: 0.15, metalness: 0 });
+    glass.colorNode = tint.mul(0.35);
+    // brighter toward the tip of the bulb
+    glass.emissiveNode = tint.mul(bright).mul(smoothstep(-0.05, 0.16, positionGeometry.y).mul(0.6).add(0.55));
+
+    // a C9-style bulb pointing out from the ring, on a little socket
+    const bulbGeo = new THREE.LatheGeometry(
+      [
+        [0.001, 0],
+        [0.05, 0.02],
+        [0.075, 0.08],
+        [0.07, 0.15],
+        [0.04, 0.22],
+        [0.001, 0.25],
+      ].map(([r, y]) => new THREE.Vector2(r, y)),
+      14,
+    ).translate(0, 0.04, 0);
+    const bulbs = new THREE.InstancedMesh(bulbGeo, glass, count);
+    const sockets = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.032, 0.036, 0.06, 8).translate(0, 0.02, 0), new THREE.MeshStandardNodeMaterial({ color: '#15301c', roughness: 0.6 }), count);
+    const m = new THREE.Matrix4();
+    const q = new THREE.Quaternion();
+    const up = new THREE.Vector3(0, 1, 0);
+    for (let i = 0; i < count; i++) {
+      const a = (i / count) * Math.PI * 2;
+      // pointing outward, tipped a little toward the camera
+      const dir = new THREE.Vector3(Math.cos(a), Math.sin(a), 0.35).normalize();
+      q.setFromUnitVectors(up, dir);
+      m.compose(new THREE.Vector3(Math.cos(a) * LED_R, Math.sin(a) * LED_R, 0.02), q, new THREE.Vector3(1, 1, 1));
+      bulbs.setMatrixAt(i, m);
+      sockets.setMatrixAt(i, m);
+    }
+    g.add(bulbs, sockets);
+    this.lights = g;
+    this.root.add(g);
+  }
+
+  /**
+   * Show the decoration for `slot` built for `key` (rebuilding it when the key
+   * changes), or remove it when `key` is undefined.
+   */
+  private decorate(slot: string, key: string | undefined, build: () => THREE.Object3D, parent: THREE.Object3D) {
+    const current = this.decorations.get(slot);
+    if (current?.key === key) return;
+    if (current) {
+      current.object.parent?.remove(current.object);
+      current.object.traverse((o) => {
+        const mesh = o as THREE.Mesh;
+        if (mesh.isMesh) {
+          mesh.geometry.dispose();
+          (mesh.material as THREE.Material).dispose();
+        }
+      });
+      this.decorations.delete(slot);
+    }
+    if (key === undefined) return;
+    const object = build();
+    parent.add(object);
+    this.decorations.set(slot, { key, object });
+  }
+
+  /** A ring donut: baked dough with glossy, drippy frosting on the front, and sprinkles. */
+  private makeDonut(d: NonNullable<WheelStyle['donut']>) {
+    const g = new THREE.Group();
+    const ringR = RIM_R + 0.06;
+    const tube = 0.25;
+    // Torus UVs: x around the wheel, y around the tube (0.25 = the face toward the camera)
+    const u = uv();
+    const drip = mx_noise_float(vec3(u.x.mul(40), 0, 0)).mul(0.06);
+    const frosted = smoothstep(0.2 + 0.015, 0.2, abs(u.y.sub(0.25)).sub(drip));
+    const mat = new THREE.MeshStandardNodeMaterial({ roughness: 0.65 });
+    const dough = mix(vec3(0.85, 0.58, 0.32), vec3(0.62, 0.36, 0.17), smoothstep(0.3, 0.6, abs(u.y.sub(0.25))));
+    const frosting = new THREE.Color(d.frosting);
+    mat.colorNode = mix(dough, vec3(frosting.r, frosting.g, frosting.b), frosted);
+    mat.roughnessNode = mix(float(0.7), float(0.25), frosted);
+    const donut = new THREE.Mesh(new THREE.TorusGeometry(ringR, tube, 24, 220), mat);
+    donut.scale.z = 0.85;
+    g.add(donut);
+
+    const count = 420;
+    const sprinkles = new THREE.InstancedMesh(new THREE.CapsuleGeometry(0.014, 0.06, 2, 6), new THREE.MeshStandardNodeMaterial({ roughness: 0.4 }), count);
+    const m = new THREE.Matrix4();
+    const q = new THREE.Quaternion();
+    const c = new THREE.Color();
+    for (let i = 0; i < count; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const v = Math.PI / 2 + (Math.random() - 0.5) * Math.PI * 0.62; // on the frosting
+      const n = new THREE.Vector3(Math.cos(v) * Math.cos(a), Math.cos(v) * Math.sin(a), Math.sin(v) * 0.85);
+      const p = new THREE.Vector3(Math.cos(a) * ringR, Math.sin(a) * ringR, 0).addScaledVector(n, tube * 1.01);
+      // lying flat on the surface, pointing any which way
+      q.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3().randomDirection().cross(n).normalize());
+      sprinkles.setMatrixAt(i, m.compose(p, q, new THREE.Vector3(1, 1, 1)));
+      sprinkles.setColorAt(i, c.set(d.sprinkles[i % d.sprinkles.length]));
+    }
+    g.add(sprinkles);
+    return g;
+  }
+
+  /** Brass rivets around the rim, like a ship's porthole. */
+  private makeRivets() {
+    const count = 32;
+    const rivets = new THREE.InstancedMesh(new THREE.SphereGeometry(0.05, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2).rotateX(Math.PI / 2), new THREE.MeshStandardNodeMaterial({ color: '#c9a25a', metalness: 0.6, roughness: 0.3 }), count);
+    const m = new THREE.Matrix4();
+    for (let i = 0; i < count; i++) {
+      const a = ((i + 0.5) / count) * Math.PI * 2;
+      rivets.setMatrixAt(i, m.makeTranslation(Math.cos(a) * RIM_R, Math.sin(a) * RIM_R, 0.13));
+    }
+    return rivets;
+  }
+
+  /** Glowing bubbles that bob gently, in place of the bulbs. */
+  private makeBubbles() {
+    const count = 36;
+    const phases = new Float32Array(count);
+    for (let i = 0; i < count; i++) phases[i] = i / count;
+    const phase: any = instancedBufferAttribute(new THREE.InstancedBufferAttribute(phases, 1), 'float');
+    const alt = step(0.5, fract(phase.mul(count / 2)));
+    const bright = this.bulbBrightness(phase, alt).mul(0.4).add(0.6);
+    const mat = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+    const fres = pow(float(1).sub(abs(dot(normalView, positionViewDirection))), 2.5);
+    // a bright rim and a little highlight, like a soap bubble lit from inside
+    const highlight = smoothstep(0.035, 0.0, length(positionGeometry.xy.sub(vec2(-0.035, 0.04))));
+    mat.colorNode = mix(this.uLedA, this.uLedB, alt).mul(fres.mul(1.4).add(0.07)).add(vec3(highlight.mul(0.9))).mul(bright);
+    // bob: positionLocal includes the instance transform here, so this is in world units
+    mat.positionNode = positionLocal.add((vec3 as any)(0, sin(time.mul(1.6).add(phase.mul(37))).mul(0.04), 0));
+    const bubbles = new THREE.InstancedMesh(new THREE.SphereGeometry(0.11, 16, 12), mat, count);
+    const m = new THREE.Matrix4();
+    for (let i = 0; i < count; i++) {
+      const a = (i / count) * Math.PI * 2;
+      const s = 0.75 + ((i * 7) % 5) * 0.12;
+      bubbles.setMatrixAt(i, m.compose(new THREE.Vector3(Math.cos(a) * LED_R, Math.sin(a) * LED_R, 0.06), new THREE.Quaternion(), new THREE.Vector3(s, s, s)));
+    }
+    bubbles.renderOrder = 2;
+    return bubbles;
+  }
+
+  /** The rim as a ring of swirling plasma, like an accretion disk: white-hot to orange, brighter on one side. */
+  private makePlasmaRim(p: NonNullable<WheelStyle['plasmaRim']>) {
+    const hot = new THREE.Color(p.hot);
+    const cool = new THREE.Color(p.cool);
+    const mat = new THREE.MeshBasicNodeMaterial();
+    const ang = atan(positionLocal.y, positionLocal.x);
+    // streaks flowing around the ring, faster while the wheel spins
+    const flow = time.mul(float(1.6).add(this.uSpeed.mul(0.15)));
+    const n = mx_noise_float(vec3(cos(ang.sub(flow.mul(0.35))).mul(3), sin(ang.sub(flow.mul(0.35))).mul(3), positionLocal.z.mul(6).add(time.mul(0.4)))).mul(0.5).add(0.5);
+    const streak = mx_noise_float(vec3(ang.mul(14).sub(flow), positionLocal.z.mul(10), 0)).mul(0.5).add(0.5);
+    const heat = n.mul(0.6).add(streak.mul(0.4));
+    // relativistic beaming: one side of the ring brighter than the other
+    const doppler = cos(ang.add(0.6)).mul(0.35).add(1);
+    mat.colorNode = mix(vec3(cool.r, cool.g, cool.b), vec3(hot.r, hot.g, hot.b), smoothstep(0.35, 0.8, heat))
+      .mul(heat.mul(1.4).add(0.6))
+      .mul(doppler)
+      .mul(float(1.4).add(this.uWin.mul(1.5)));
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(RIM_R, 0.16, 24, 256), mat);
+    return ring;
+  }
+
+  /** Chrome (default) or matte: wood for a helm, knotted dark wood when gnarled. */
+  private applyRimFinish(finish: WheelStyle['rimFinish']) {
+    const matte = !!this.style.helm || finish === 'gnarled';
+    this.rimMat.metalness = matte ? 0.1 : 0.95;
+    this.rimMat.roughness = matte ? 0.6 : 0.16;
+    this.uRimLift.value = matte ? 0.04 : 0.35;
+    this.uGnarl.value = finish === 'gnarled' ? 1 : 0;
+  }
+
+  /** A ring of flickering candles in place of the marquee bulbs (they stay upright). */
+  private applyCandles(on: boolean) {
+    if (on === !!this.candles) return;
+    if (this.candles) {
+      this.root.remove(this.candles);
+      this.candles.traverse((o) => {
+        const mesh = o as THREE.Mesh;
+        if (mesh.isMesh) {
+          mesh.geometry.dispose();
+          (mesh.material as THREE.Material).dispose();
+        }
+      });
+      this.candles = null;
+    }
+    if (!on) return;
+    const count = 24;
+    const g = new THREE.Group();
+    const phases = new Float32Array(count);
+    const heights = new Float32Array(count);
+    for (let i = 0; i < count; i++) {
+      phases[i] = i / count;
+      heights[i] = 0.75 + ((i * 37) % 10) / 22; // uneven, half-burnt candles
+    }
+    const phase: any = instancedBufferAttribute(new THREE.InstancedBufferAttribute(phases, 1), 'float');
+    const alt = step(0.5, fract(phase.mul(count / 2)));
+
+    // wax: off-white with darker drips running down from the top
+    const wax = new THREE.MeshStandardNodeMaterial({ roughness: 0.55 });
+    const drips = smoothstep(0.55, 0.85, mx_noise_float(vec3(atan(positionGeometry.z, positionGeometry.x).mul(3), positionGeometry.y.mul(4), 0)).mul(0.5).add(0.5)).mul(smoothstep(0.05, 0.2, positionGeometry.y));
+    wax.colorNode = mix(vec3(0.92, 0.88, 0.78), vec3(0.75, 0.68, 0.55), drips);
+    wax.emissiveNode = vec3(1, 0.55, 0.2).mul(smoothstep(0.15, 0.27, positionGeometry.y).mul(0.25)); // lit from the flame above
+    const body = new THREE.CylinderGeometry(0.08, 0.092, 0.27, 12).translate(0, 0.135, 0);
+
+    // flame: a teardrop that flickers, leans and pulses with the light show
+    const flicker = sin(time.mul(17).add(phase.mul(41))).mul(0.5).add(sin(time.mul(9.3).add(phase.mul(77))).mul(0.5));
+    const bright = this.bulbBrightness(phase, alt).mul(0.45).add(0.75).mul(flicker.mul(0.12).add(1));
+    const flameMat = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+    const fy = positionGeometry.y;
+    flameMat.colorNode = mix(vec3(1, 0.95, 0.65), vec3(1, 0.45, 0.1), smoothstep(0.0, 0.14, fy)).mul(bright.mul(1.6));
+    const lean = flicker.mul(0.015).mul(fy.mul(8));
+    flameMat.positionNode = positionLocal.add((vec3 as any)(lean, flicker.mul(0.01).mul(fy.mul(6)), 0));
+    const flameGeo = new THREE.LatheGeometry(
+      [
+        [0.001, 0],
+        [0.03, 0.03],
+        [0.035, 0.06],
+        [0.022, 0.12],
+        [0.001, 0.17],
+      ].map(([r, y]) => new THREE.Vector2(r, y)),
+      10,
+    );
+    const halo = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+    halo.colorNode = vec3(1, 0.55, 0.2).mul(smoothstep(0.5, 0.0, length(uv().sub(0.5))).mul(bright.mul(0.35)));
+
+    const bodies = new THREE.InstancedMesh(body, wax, count);
+    const flames = new THREE.InstancedMesh(flameGeo, flameMat, count);
+    const halos = new THREE.InstancedMesh(new THREE.PlaneGeometry(0.42, 0.42), halo, count);
+    const m = new THREE.Matrix4();
+    for (let i = 0; i < count; i++) {
+      const a = (i / count) * Math.PI * 2;
+      const x = Math.cos(a) * LED_R;
+      const y = Math.sin(a) * LED_R;
+      const h = heights[i];
+      bodies.setMatrixAt(i, m.compose(new THREE.Vector3(x, y - 0.12, 0.04), new THREE.Quaternion(), new THREE.Vector3(1, h, 1)));
+      flames.setMatrixAt(i, m.compose(new THREE.Vector3(x, y - 0.12 + 0.27 * h + 0.01, 0.04), new THREE.Quaternion(), new THREE.Vector3(1.25, 1.25, 1.25)));
+      halos.setMatrixAt(i, m.compose(new THREE.Vector3(x, y - 0.12 + 0.27 * h + 0.09, 0.1), new THREE.Quaternion(), new THREE.Vector3(1.25, 1.25, 1.25)));
+    }
+    flames.renderOrder = halos.renderOrder = 2;
+    // the iron ring the candles stand on
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(LED_R, 0.04, 8, 200), new THREE.MeshStandardNodeMaterial({ color: '#2a2530', metalness: 0.7, roughness: 0.5 }));
+    g.add(ring, bodies, halos, flames);
+    this.candles = g;
+    this.root.add(g);
+  }
+
+  /** Swap the pointer between the glossy teardrop (default) and the special shapes. */
+  private applyPointer(kind: WheelStyle['pointer']) {
+    for (const o of this.flapperDefault) o.visible = !kind;
+    if (kind && !this.pointers.has(kind)) {
+      const shape = { icicle: () => this.makeIcicle(), scythe: () => this.makeScythe(), candycane: () => this.makeCandyCane(), anchor: () => this.makeAnchor(), comet: () => this.makeComet() }[kind]();
+      this.pointers.set(kind, shape);
+      this.flapper.add(shape);
+    }
+    for (const [k, o] of this.pointers) o.visible = k === kind;
+  }
+
+  private makeIcicle() {
+    const mat = new THREE.MeshStandardNodeMaterial({ roughness: 0.06, metalness: 0.1 });
+    const fres = pow(float(1).sub(abs(dot(normalView, positionViewDirection))), 2.2);
+    // clear blue ice, frosted near the top, glowing at the edges
+    mat.colorNode = mix(vec3(0.62, 0.85, 1), vec3(0.93, 0.98, 1), smoothstep(-0.2, 0.2, positionGeometry.y));
+    mat.emissiveNode = vec3(0.45, 0.8, 1).mul(fres.mul(1.2).add(0.12).add(this.uWin.mul(0.8)));
+    // a main spike with a lumpy, dripping profile
+    const profile = [
+      [0.001, -0.78],
+      [0.05, -0.55],
+      [0.07, -0.42],
+      [0.1, -0.3],
+      [0.12, -0.1],
+      [0.18, 0.06],
+      [0.22, 0.16],
+      [0.2, 0.24],
+      [0.001, 0.28],
+    ].map(([r, y]) => new THREE.Vector2(r, y));
+    const icicle = new THREE.Mesh(new THREE.LatheGeometry(profile, 12), mat);
+    icicle.scale.z = 0.6; // flatter front to back, like the original pointer
+    return icicle;
+  }
+
+  /** A red-and-white candy cane hanging from its hook, its straight end pointing at the pins. */
+  private makeCandyCane() {
+    const path = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(0.3, 0.02, 0),
+      new THREE.Vector3(0.28, 0.2, 0),
+      new THREE.Vector3(0.12, 0.3, 0),
+      new THREE.Vector3(-0.02, 0.18, 0),
+      new THREE.Vector3(0, -0.2, 0),
+      new THREE.Vector3(0, -0.72, 0),
+    ]);
+    const mat = new THREE.MeshPhysicalNodeMaterial({ roughness: 0.18, clearcoat: 1, clearcoatRoughness: 0.08 });
+    const u = uv();
+    mat.colorNode = mix(vec3(0.96, 0.95, 0.94), vec3(0.85, 0.08, 0.15), step(0.5, fract(u.x.mul(16).add(u.y))));
+    return new THREE.Mesh(new THREE.TubeGeometry(path, 64, 0.06, 12, false), mat);
+  }
+
+  /** A ship's anchor: ring, stock and shank, with curved arms and flukes at the bottom. */
+  private makeAnchor() {
+    const g = new THREE.Group();
+    const iron = new THREE.MeshStandardNodeMaterial({ color: '#b08a45', metalness: 0.45, roughness: 0.4 });
+    g.add(new THREE.Mesh(new THREE.TorusGeometry(0.075, 0.022, 8, 20).translate(0, 0.2, 0), iron));
+    g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.34, 8).rotateZ(Math.PI / 2).translate(0, 0.07, 0), iron));
+    g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.86, 10).translate(0, -0.28, 0), iron));
+    const arms = new THREE.Mesh(new THREE.TorusGeometry(0.24, 0.032, 8, 24, Math.PI).rotateZ(Math.PI).translate(0, -0.48, 0), iron);
+    g.add(arms);
+    for (const s of [-1, 1]) {
+      const fluke = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.16, 4).rotateZ(s * 0.6).translate(s * 0.25, -0.43, 0), iron);
+      g.add(fluke);
+    }
+    g.add(new THREE.Mesh(new THREE.ConeGeometry(0.045, 0.1, 6).rotateZ(Math.PI).translate(0, -0.74, 0), iron)); // the crown's point
+    return g;
+  }
+
+  /** A comet: a blazing head at the tip with its glowing tail streaming up behind it. */
+  private makeComet() {
+    const g = new THREE.Group();
+    const head = new THREE.MeshBasicNodeMaterial();
+    head.colorNode = vec3(1, 0.97, 0.9).mul(float(2.2).add(this.uWin.mul(2)));
+    g.add(new THREE.Mesh(new THREE.SphereGeometry(0.1, 16, 12).translate(0, -0.62, 0), head));
+    const tail = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+    const along = smoothstep(-0.62, 0.3, positionGeometry.y); // 0 at the head, 1 at the far end
+    const flicker = sin(time.mul(11).add(positionGeometry.y.mul(20))).mul(0.1).add(1);
+    tail.colorNode = mix(vec3(0.75, 0.9, 1), vec3(0.6, 0.45, 1), along).mul(float(1).sub(along).mul(1.6)).mul(flicker);
+    g.add(new THREE.Mesh(new THREE.ConeGeometry(0.17, 0.92, 20, 1, true).rotateZ(Math.PI).translate(0, -0.16, 0), tail));
+    return g;
+  }
+
+  /** A reaper's scythe blade hanging from the pivot, curving down to a point. */
+  private makeScythe() {
+    const g = new THREE.Group();
+    const blade = new THREE.Shape();
+    blade.moveTo(-0.05, 0.12);
+    blade.quadraticCurveTo(0.42, 0.02, 0.2, -0.42);
+    blade.quadraticCurveTo(0.08, -0.62, -0.02, -0.74); // the point, aimed at the pins
+    blade.quadraticCurveTo(0.1, -0.4, -0.12, -0.12);
+    blade.closePath();
+    const geo = new THREE.ExtrudeGeometry(blade, { depth: 0.03, bevelEnabled: true, bevelThickness: 0.015, bevelSize: 0.015, bevelSegments: 2, curveSegments: 20 }).translate(0, 0, -0.03);
+    // dull, dark steel: a mirror finish would just reflect the bright environment and read as white
+    const steel = new THREE.MeshStandardNodeMaterial({ metalness: 0.25, roughness: 0.45 });
+    const fres = pow(float(1).sub(abs(dot(normalView, positionViewDirection))), 3.0);
+    steel.colorNode = vec3(0.2, 0.2, 0.24);
+    // an eerie sheen along the edge, flaring on a win
+    steel.emissiveNode = vec3(0.55, 0.3, 0.95).mul(fres.mul(0.7).add(0.02).add(this.uWin.mul(0.6)));
+    g.add(new THREE.Mesh(geo, steel));
+    // the end of the wooden snath it hangs from, with an iron collar
+    const wood = new THREE.MeshStandardNodeMaterial({ color: '#3a2618', roughness: 0.8 });
+    g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.08, 0.42, 10).translate(0, 0.2, 0), wood));
+    g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.095, 0.095, 0.08, 12).translate(0, 0.04, 0), new THREE.MeshStandardNodeMaterial({ color: '#2a2a30', metalness: 0.8, roughness: 0.4 })));
+    return g;
+  }
+
+  /** Swap the chrome rim for a racing tyre (or back). */
+  private applyTire(tire: WheelStyle['tire']) {
+    const key = tire ? `${tire.text}|${tire.color}` : '';
+    if (key === this.tireKey) return;
+    this.tireKey = key;
+    if (this.tire) {
+      this.spinner.remove(this.tire);
+      this.tire.geometry.dispose();
+      const mat = this.tire.material as THREE.MeshStandardNodeMaterial;
+      (mat.userData.lettering as THREE.Texture | undefined)?.dispose();
+      mat.dispose();
+      this.tire = null;
+    }
+    if (!tire) return;
+
+    // sidewall lettering, drawn once; it repeats three times around the tyre
+    const c = document.createElement('canvas');
+    c.width = 2048;
+    c.height = 160;
+    const ctx = c.getContext('2d')!;
+    ctx.fillStyle = tire.color;
+    ctx.font = 'italic 900 112px "Arial Black", "Helvetica Neue", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(tire.text, 1024, 84, 1900);
+    const lettering = new THREE.CanvasTexture(c);
+    lettering.colorSpace = THREE.SRGBColorSpace;
+    lettering.anisotropy = 8;
+    lettering.wrapS = THREE.RepeatWrapping; // repeat by wrapping, not fract(), so there's no seam
+
+    // Torus UVs: x runs around the wheel (counter-clockwise), y around the tube
+    // (0 = outer tread, 0.25 = the face toward the camera, 0.5 = inner edge).
+    const u = uv();
+    const rubber = vec3(0.045, 0.045, 0.05);
+    // tread: chevron grooves on the outer band
+    const outer = smoothstep(0.13, 0.08, u.y).max(smoothstep(0.87, 0.92, u.y));
+    const groove = step(0.5, fract(u.x.mul(220).add(abs(u.y.sub(0.5)).mul(6))));
+    let col: any = mix(rubber, rubber.mul(0.4), groove.mul(outer));
+    // sidewall: a coloured compound band either side of the lettering
+    const side = u.y.sub(0.25);
+    const band = smoothstep(0.012, 0.0, abs(abs(side).sub(0.095)));
+    col = mix(col, this.uTireColor, band);
+    // lettering, mirrored so it reads clockwise (the right way up across the top)
+    const textV = side.div(0.16).add(0.5);
+    const inBand = step(0, textV).mul(step(textV, 1));
+    const ink = texture(lettering, vec2(u.x.mul(-3), float(1).sub(textV))).a.mul(inBand);
+    col = mix(col, this.uTireColor, ink);
+    const mat = new THREE.MeshStandardNodeMaterial({ roughness: 0.85, metalness: 0 });
+    mat.colorNode = col;
+    mat.roughnessNode = mix(float(0.85), float(0.5), band.max(ink));
+    mat.userData.lettering = lettering;
+    this.uTireColor.value.set(tire.color);
+    this.tire = new THREE.Mesh(new THREE.TorusGeometry(RIM_R + 0.14, 0.32, 28, 256), mat);
+    this.tire.scale.z = 0.75; // a little narrower front to back than it is tall
+    this.spinner.add(this.tire);
+  }
+
+  /** Switch between the carnival marquee and a ship's helm. */
+  private applyHelm(helm: WheelStyle['helm']) {
+    // a wooden rim is matte; the default one is chrome
+    if (helm) this.uWood.value.set(helm.wood);
+    const key = helm ? String(helm.handles) : '';
+    if (key === this.helmKey) return;
+    this.helmKey = key;
+    if (this.helm) {
+      this.spinner.remove(this.helm);
+      this.helm.geometry.dispose();
+      (this.helm.material as THREE.Material).dispose();
+      this.helm = null;
+    }
+    if (!helm) return;
+
+    // one turned handle (lathe profile along +Y, from the rim outward), repeated around the wheel
+    const profile = [
+      [0.075, 0],
+      [0.08, 0.14],
+      [0.12, 0.24],
+      [0.085, 0.34],
+      [0.09, 0.54],
+      [0.13, 0.68],
+      [0.145, 0.8],
+      [0.12, 0.91],
+      [0.05, 0.99],
+      [0.001, 1.0],
+    ].map(([r, y]) => new THREE.Vector2(r, y));
+    const handle = new THREE.LatheGeometry(profile, 14);
+    const collar = new THREE.TorusGeometry(0.1, 0.035, 8, 16).rotateX(Math.PI / 2).translate(0, 0.06, 0);
+    const parts: THREE.BufferGeometry[] = [];
+    for (let i = 0; i < helm.handles; i++) {
+      const a = (i / helm.handles) * Math.PI * 2;
+      for (const g of [handle, collar]) {
+        parts.push(g.clone().translate(0, RIM_R + 0.1, 0).rotateZ(a - Math.PI / 2));
+      }
+    }
+    const geo = mergeGeometries(parts)!;
+    // turned-wood grain: rings along each handle, a little darker at the ends
+    const mat = new THREE.MeshStandardNodeMaterial({ roughness: 0.55, metalness: 0.05 });
+    const along = length(positionLocal.xy);
+    mat.colorNode = this.uWood.mul(sin(along.mul(60)).mul(0.08).add(0.95)).mul(float(1).sub(smoothstep(RIM_R + 0.8, RIM_R + 1.1, along).mul(0.25)));
+    // the handles sit just behind the pointer so they sweep under it
+    this.helm = new THREE.Mesh(geo, mat);
+    this.helm.position.z = -0.08;
+    this.spinner.add(this.helm);
   }
 
   private buildFlapper() {
@@ -437,5 +1133,6 @@ export class Wheel {
 
     this.flapper.position.set(0, R + 0.5, 0.3);
     this.root.add(this.flapper);
+    this.flapperDefault = [...this.flapper.children];
   }
 }

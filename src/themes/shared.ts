@@ -111,3 +111,42 @@ export const rgb = (hex: string): N => {
   const c = new THREE.Color(hex);
   return vec3(c.r, c.g, c.b);
 };
+
+/**
+ * A tube along a smooth curve through `points`, with a radius that varies
+ * along it (`radius(t)`, t = 0..1) — tentacles, necks, tails. UV x runs along
+ * the tube, y around it.
+ */
+export function taperedTube(points: THREE.Vector3[], radius: (t: number) => number, segments = 60, radial = 12) {
+  const curve = new THREE.CatmullRomCurve3(points);
+  const frames = curve.computeFrenetFrames(segments, false);
+  const pos: number[] = [];
+  const uvs: number[] = [];
+  const index: number[] = [];
+  const p = new THREE.Vector3();
+  const n = new THREE.Vector3();
+  for (let i = 0; i <= segments; i++) {
+    const t = i / segments;
+    curve.getPointAt(t, p);
+    const r = radius(t);
+    for (let j = 0; j <= radial; j++) {
+      const a = (j / radial) * Math.PI * 2;
+      n.copy(frames.normals[i]).multiplyScalar(Math.cos(a)).addScaledVector(frames.binormals[i], Math.sin(a));
+      pos.push(p.x + n.x * r, p.y + n.y * r, p.z + n.z * r);
+      uvs.push(t, j / radial);
+    }
+  }
+  for (let i = 0; i < segments; i++) {
+    for (let j = 0; j < radial; j++) {
+      const a = i * (radial + 1) + j;
+      const b = a + radial + 1;
+      index.push(a, b, a + 1, b, b + 1, a + 1);
+    }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geo.setIndex(index);
+  geo.computeVertexNormals();
+  return geo;
+}

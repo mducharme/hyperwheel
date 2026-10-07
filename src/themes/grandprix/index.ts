@@ -324,6 +324,7 @@ export const grandprix: Theme<RaceScene> = {
     hub: ['#e10600', '#1a1a1d'],
     pegs: '#f2f2f2',
     frame: '#121214',
+    tire: { text: 'HYPERWHEEL  •  GRAND PRIX', color: '#ffd400' },
   },
   // daylight: keep bloom for the lamps and sparkles only, so the bright sky doesn't haze everything
   post: { bloom: [0.18, 0.3, 0.97], exposure: 0.86, aberration: 0.6, vignette: 0.4 },

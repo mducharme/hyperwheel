@@ -151,5 +151,56 @@
       {"file": "win-4.mp3", "seconds": 4, "prompt": "Short orchestral champion's flourish: strings run upward into a bold horn chord with cymbal swell, trophy moment, instrumental only"},
       {"file": "win-5.mp3", "seconds": 4, "prompt": "Short funky horn-section victory hit with a slap-bass lick and drum fill, ending on a sharp stab, instrumental only"}
     ]
+  },
+  "pirates": {
+    "spin": [
+      {"file": "spin-1.mp3", "seconds": 20, "prompt": "Rollicking sea-shanty jig at 120 BPM, squeezebox accordion melody, stomping kick and hand claps, fiddle and tin whistle, rowdy pirate crew energy, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-2.mp3", "seconds": 20, "prompt": "Swashbuckling orchestral adventure at 132 BPM, galloping strings, bold brass melody, snare rolls and timpani, high-seas chase on a pirate ship, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-3.mp3", "seconds": 20, "prompt": "Tavern pirate polka at 140 BPM, oom-pah tuba bass, accordion and banjo, rattling tambourine, cheeky drunken fun, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-4.mp3", "seconds": 20, "prompt": "Cinematic pirate action at 124 BPM in a minor key, driving cellos, booming taiko drums, heroic French horns, stormy waves and adventure, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-5.mp3", "seconds": 20, "prompt": "Calypso pirate cove groove at 112 BPM, marimba and steel drum melody, plucked guitar, shakers and bongos, sunny treasure-island mischief, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-6.mp3", "seconds": 20, "prompt": "Fiddle reel at 150 BPM, rapid Irish fiddle, bodhr\u00e1n drum, foot stomps and acoustic guitar strums, lively deck dance, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"}
+    ],
+    "win": [
+      {"file": "win-1.mp3", "seconds": 4, "prompt": "Short swashbuckling brass fanfare with a cymbal crash and a triumphant final chord, treasure found, instrumental only"},
+      {"file": "win-2.mp3", "seconds": 4, "prompt": "Short sea-shanty accordion flourish ending on a hearty major chord with a stomp, pirate victory, instrumental only"},
+      {"file": "win-3.mp3", "seconds": 4, "prompt": "Short orchestral 'land ho' sting: rising strings into a big horn chord with timpani roll, adventure triumph, instrumental only"},
+      {"file": "win-4.mp3", "seconds": 4, "prompt": "Short cheeky fiddle and tin-whistle run ending on a bright chord and a clap, jolly crew cheer, instrumental only"},
+      {"file": "win-5.mp3", "seconds": 4, "prompt": "Short treasure-chest reveal: glockenspiel sparkle into a bold brass chord, gold and glory, instrumental only"}
+    ]
+  },
+  "crystal": {
+    "spin": [
+      {"file": "spin-1.mp3", "seconds": 20, "prompt": "Shimmering crystal-cave electronica at 116 BPM, glassy mallet arpeggios, sub bass pulse, crisp glitchy percussion, sparkling chimes, wonder and mystery, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-2.mp3", "seconds": 20, "prompt": "Upbeat glockenspiel and celesta adventure at 124 BPM, plucked pizzicato strings, bouncy bass, light drums, magical treasure-hunt excitement, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-3.mp3", "seconds": 20, "prompt": "Driving synthwave-meets-gamelan at 120 BPM, metallic gongs and bell tones, warm analog bass, steady kick, glowing underground journey, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-4.mp3", "seconds": 20, "prompt": "Playful marimba and kalimba groove at 110 BPM, deep tom drums echoing in a cavern, finger snaps, curious exploration, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-5.mp3", "seconds": 20, "prompt": "Epic fantasy orchestral at 128 BPM, choir 'ah' pads, harp glissandos, pounding drums, soaring flute melody, discovering a giant geode, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-6.mp3", "seconds": 20, "prompt": "Minimal house with crystal bells at 122 BPM, rolling bassline, airy pads, shuffled hi-hats, hypnotic sparkle, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"}
+    ],
+    "win": [
+      {"file": "win-1.mp3", "seconds": 4, "prompt": "Short sparkling crystal chime cascade rising into a bright major chord with a soft cymbal swell, treasure found, instrumental only"},
+      {"file": "win-2.mp3", "seconds": 4, "prompt": "Short glockenspiel and harp victory flourish ending on a shimmering chord, magical reward, instrumental only"},
+      {"file": "win-3.mp3", "seconds": 4, "prompt": "Short epic choir and brass sting: rising 'ah' into a big chord with timpani hit, legendary gem discovered, instrumental only"},
+      {"file": "win-4.mp3", "seconds": 4, "prompt": "Short playful marimba run ending on a bell-like major chord and a gentle gong, happy discovery, instrumental only"},
+      {"file": "win-5.mp3", "seconds": 4, "prompt": "Short synth arpeggio sweep into a glittering chord stab with a reverse cymbal, crystal power-up, instrumental only"}
+    ]
+  },
+  "dino": {
+    "spin": [
+      {"file": "spin-1.mp3", "seconds": 20, "prompt": "Prehistoric jungle adventure at 112 BPM, booming tribal drums, deep tuba and bassoon footsteps, playful marimba melody, giant creatures lumbering about, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-2.mp3", "seconds": 20, "prompt": "Epic dinosaur expedition orchestral at 120 BPM, soaring horns, driving strings, timpani and taiko, sense of wonder in a lost valley, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-3.mp3", "seconds": 20, "prompt": "Cheeky cartoon dino march at 128 BPM, oom-pah tuba, pizzicato strings, woodblocks and slide whistle accents, comic stomping, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-4.mp3", "seconds": 20, "prompt": "Tribal percussion groove at 116 BPM, djembe and talking drum, wooden flutes, deep didgeridoo drone, primal energy, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-5.mp3", "seconds": 20, "prompt": "Upbeat jungle funk at 104 BPM, slap bass, congas and shakers, wah guitar and bright brass stabs, swampy fun, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-6.mp3", "seconds": 20, "prompt": "Fast adventure chase at 140 BPM, galloping strings, brass hits, snare rolls and toms, running from a T-rex, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"}
+    ],
+    "win": [
+      {"file": "win-1.mp3", "seconds": 4, "prompt": "Short triumphant brass and timpani fanfare with a huge final chord and a cymbal crash, discovery of a lost world, instrumental only"},
+      {"file": "win-2.mp3", "seconds": 4, "prompt": "Short playful marimba and tuba flourish ending on a bright chord with a stomp, baby dinosaur hatches, instrumental only"},
+      {"file": "win-3.mp3", "seconds": 4, "prompt": "Short tribal drum roll into a bold horn chord, victory in the valley, instrumental only"},
+      {"file": "win-4.mp3", "seconds": 4, "prompt": "Short cartoon slide-whistle and xylophone sting ending on a cheerful brass stab, comic win, instrumental only"},
+      {"file": "win-5.mp3", "seconds": 4, "prompt": "Short epic choir 'ah' swell into a big orchestral chord with booming drums, legendary moment, instrumental only"}
+    ]
   }
 }
