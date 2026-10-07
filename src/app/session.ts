@@ -1,5 +1,7 @@
 import { newWheel, readShareLink, wheels, type WheelDoc } from '../library/wheels';
 import { DEFAULT_NAMES, persist, store } from './store';
+import { listPresets, openPreset } from '../library/presets';
+import { presetSlug, routePreset, routeTheme, showRoute } from './route';
 
 export type Change = 'open' | 'entries' | 'settings' | 'title' | 'results';
 
@@ -22,8 +24,14 @@ export class Session {
     this.listeners.forEach((fn) => fn(c));
   }
 
-  /** Boot: a share link, else the last wheel, else a fresh one. */
+  /**
+   * Boot: a share link, else a preset named in the path (`/team-standup`), else
+   * the last wheel, else a fresh one. A scene in the hash (`#pizza`) applies to
+   * whichever wheel that is.
+   */
   async load(): Promise<{ fromLink: boolean; linkError?: string }> {
+    const theme = routeTheme();
+    const wanted = routePreset();
     const shared = await readShareLink();
     let linkError: string | undefined;
     if (shared) history.replaceState(null, '', location.pathname + location.search);
@@ -33,10 +41,21 @@ export class Session {
       return { fromLink: true };
     }
     if (shared) linkError = shared.error;
-    let doc = store.currentWheel ? await wheels.get(store.currentWheel) : undefined;
+
+    let doc: WheelDoc | undefined;
+    if (wanted) {
+      const preset = (await listPresets()).find((p) => presetSlug(p.file) === wanted);
+      if (preset) doc = await openPreset(preset).catch(() => undefined);
+      if (!doc) linkError ??= `There's no preset wheel called “${wanted}”.`;
+    }
+    doc ??= store.currentWheel ? await wheels.get(store.currentWheel) : undefined;
     doc ??= (await wheels.list())[0];
     if (!doc) {
       doc = newWheel('My wheel', DEFAULT_NAMES);
+      await wheels.save(doc);
+    }
+    if (theme && doc.settings.theme !== theme) {
+      doc.settings = { ...doc.settings, theme };
       await wheels.save(doc);
     }
     this.open(doc);
@@ -48,6 +67,7 @@ export class Session {
     this.doc = doc;
     store.currentWheel = doc.id;
     persist();
+    showRoute(doc.preset && presetSlug(doc.preset));
     this.emit('open');
   }
 

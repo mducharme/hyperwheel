@@ -28,6 +28,8 @@ export interface WheelDoc {
   updatedAt: number;
   /** Small JPEG data URL of the last rendered frame, for the Open list. */
   thumb?: string;
+  /** Set on the working copy of a bundled preset wheel (its file name): it can't be deleted. */
+  preset?: string;
 }
 
 export const DEFAULT_SETTINGS: WheelSettings = {
@@ -81,6 +83,7 @@ export const wheels = {
     copy.id = uid();
     copy.title = title;
     copy.results = [];
+    delete copy.preset; // a copy of a preset is an ordinary wheel
     copy.createdAt = copy.updatedAt = Date.now();
     copy.entries = copy.entries.map((e) => ({ ...e, id: uid() }));
     return copy;
@@ -117,7 +120,7 @@ interface Manifest {
 export async function exportWheel(w: WheelDoc): Promise<Blob> {
   const { strToU8, zipSync } = await zip();
   const files: Record<string, Uint8Array> = {};
-  const manifest: Manifest = { format: 'hyperwheel', version: 1, wheel: { ...w, thumb: undefined }, assets: [] };
+  const manifest: Manifest = { format: 'hyperwheel', version: 1, wheel: { ...w, thumb: undefined, preset: undefined }, assets: [] };
   for (const id of wheelModels(w)) {
     const a = await getAsset(id);
     if (!a) continue;

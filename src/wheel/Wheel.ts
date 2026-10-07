@@ -72,9 +72,9 @@ export interface WheelStyle {
   /** Chunky multicoloured string lights instead of the marquee bulbs. */
   stringLights?: string[];
   /** Pins on the wheel face: metal pins (default) or Christmas baubles. */
-  pins?: 'baubles' | 'skulls' | 'gumdrops' | 'pearls' | 'stars' | 'pebbles';
+  pins?: 'baubles' | 'skulls' | 'gumdrops' | 'pearls' | 'stars' | 'pebbles' | 'cubes';
   /** The pointer: the glossy teardrop (default) or an icicle. */
-  pointer?: 'icicle' | 'scythe' | 'candycane' | 'anchor' | 'comet' | 'horseshoe' | 'leaf' | 'ankh';
+  pointer?: 'icicle' | 'scythe' | 'candycane' | 'anchor' | 'comet' | 'horseshoe' | 'leaf' | 'ankh' | 'balloon' | 'bolt' | 'pixel' | 'cutter';
   /** A frosted donut instead of the chrome rim. */
   donut?: { frosting: string; sprinkles: string[] };
   /** Rivets or bolts around the rim, in this colour (brass for a porthole, iron for a wagon wheel). */
@@ -85,6 +85,12 @@ export interface WheelStyle {
   plasmaRim?: { hot: string; cool: string };
   /** The rim as a glowing neon tube, fading between two colours, instead of chrome. */
   neonRim?: { a: string; b: string };
+  /** Electric arcs crackling around the rim, in this colour. */
+  arcs?: string;
+  /** A rim of voxel cubes in these colours instead of chrome. */
+  voxelRim?: string[];
+  /** A golden pizza crust instead of the chrome rim, with toppings along the slice seams. */
+  pizza?: boolean;
   /** Flickering candles instead of the marquee bulbs. */
   candles?: boolean;
   /** A matte finish instead of chrome: plain wood, or twisted dark wood. */
@@ -166,6 +172,9 @@ export class Wheel {
     m.colorNode = vec3(mx_noise_float(positionGeometry.mul(40)).mul(0.08).add(0.95)); // faint speckle, times the instance colour
     return m;
   })();
+  /** Little voxel cubes (colour per instance). */
+  private cubeGeo = new THREE.BoxGeometry(0.13, 0.13, 0.13);
+  private cubeMat = new THREE.MeshStandardNodeMaterial({ roughness: 0.6, flatShading: true });
   /** Little glowing star pins. */
   private starGeo = new THREE.OctahedronGeometry(0.075, 0).scale(1, 1, 0.45);
   private starMat = (() => {
@@ -184,6 +193,7 @@ export class Wheel {
       pearls: { geo: this.pearlGeo, mat: this.pearlMat, z: 0.07 },
       stars: { geo: this.starGeo, mat: this.starMat, z: 0.07 },
       pebbles: { geo: this.pebbleGeo, mat: this.pebbleMat, z: 0.05, colors: ['#8d8a84', '#a69c8c', '#6f6b66', '#b8b0a2', '#7c746a'] },
+      cubes: { geo: this.cubeGeo, mat: this.cubeMat, z: 0.07, colors: ['#ff4d4d', '#ffd23f', '#3ddc84', '#3fa9ff', '#c86bff'], upright: true },
     };
   }
   private textCanvas = document.createElement('canvas');
@@ -258,8 +268,11 @@ export class Wheel {
     this.decorate('bubbles', style.bubbles ? 'on' : undefined, () => this.makeBubbles(), this.root);
     this.decorate('plasmaRim', style.plasmaRim && JSON.stringify(style.plasmaRim), () => this.makePlasmaRim(style.plasmaRim!), this.spinner);
     this.decorate('neonRim', style.neonRim && JSON.stringify(style.neonRim), () => this.makeNeonRim(style.neonRim!), this.spinner);
+    this.decorate('arcs', style.arcs, () => this.makeArcs(style.arcs!), this.root);
+    this.decorate('voxelRim', style.voxelRim?.join(), () => this.makeVoxelRim(style.voxelRim!), this.spinner);
+    this.decorate('crust', style.pizza ? 'on' : undefined, () => this.makeCrust(), this.spinner);
     this.applyRimFinish(style.rimFinish);
-    this.chromeRim.visible = !style.tire && !style.wreath && !style.donut && !style.plasmaRim && !style.neonRim;
+    this.chromeRim.visible = !style.tire && !style.wreath && !style.donut && !style.plasmaRim && !style.neonRim && !style.voxelRim && !style.pizza;
     this.marquee.visible = !style.helm && !style.tire && !style.stringLights && !style.candles && !style.bubbles;
     this.setEntries(this.names);
   }
@@ -359,6 +372,8 @@ export class Wheel {
 
     this.drawText(names);
     this.buildPegs(names.length);
+    // pizza toppings sit on the slice seams, so they follow the number of slices
+    this.decorate('toppings', this.style?.pizza && names.length <= 16 ? String(names.length) : undefined, () => this.makeToppings(names.length), this.spinner);
   }
 
   private drawText(names: string[]) {
@@ -806,6 +821,91 @@ export class Wheel {
     return bubbles;
   }
 
+  /** Electric arcs crackling around the rim: jagged bolts that jump every few frames. */
+  private makeArcs(color: string) {
+    const c = new THREE.Color(color);
+    const mat = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
+    const u = uv();
+    // the pattern re-rolls ~14 times a second, like a real discharge
+    const frame = floor(time.mul(14));
+    // around the tube, 0 is the outer edge and 0.25 the face toward the camera: keep the bolts there
+    const path = mx_noise_float(vec3(u.x.mul(70), frame, 0)).mul(0.2).add(0.17);
+    const bolt = smoothstep(0.03, 0.0, abs(u.y.sub(path)));
+    const active = step(0.25, mx_noise_float(vec3(u.x.mul(6), frame.mul(0.7), 3)));
+    const hot = mix(vec3(c.r, c.g, c.b), vec3(1, 1, 1), bolt.mul(0.6));
+    mat.colorNode = hot.mul(bolt.mul(active).mul(float(3.2).add(this.uSpeed.mul(0.1)).add(this.uWin.mul(2))));
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(RIM_R + 0.05, 0.3, 24, 240), mat);
+    ring.renderOrder = 2;
+    return ring;
+  }
+
+  /** A rim of voxel cubes, alternating colours. */
+  private makeVoxelRim(colors: string[]) {
+    const count = 80;
+    const cubes = new THREE.InstancedMesh(new THREE.BoxGeometry(0.24, 0.24, 0.3), new THREE.MeshStandardNodeMaterial({ roughness: 0.55, flatShading: true }), count);
+    const m = new THREE.Matrix4();
+    const c = new THREE.Color();
+    for (let i = 0; i < count; i++) {
+      const a = (i / count) * Math.PI * 2;
+      cubes.setMatrixAt(i, m.makeRotationZ(a).setPosition(Math.cos(a) * (RIM_R + 0.04), Math.sin(a) * (RIM_R + 0.04), 0));
+      cubes.setColorAt(i, c.set(colors[Math.floor(i / 2) % colors.length]));
+    }
+    return cubes;
+  }
+
+  /** A pizza crust: puffy golden dough with charred blisters. */
+  private makeCrust() {
+    const mat = new THREE.MeshStandardNodeMaterial({ roughness: 0.75 });
+    const n = mx_noise_float(positionLocal.mul(5)).mul(0.5).add(0.5);
+    const char = smoothstep(0.72, 0.8, mx_noise_float(positionLocal.mul(vec3(3, 3, 6)).add(7)).mul(0.5).add(0.5));
+    const u = uv();
+    const top = smoothstep(0.5, 0.0, abs(u.y.sub(0.25))); // the face toward the camera bakes darker
+    mat.colorNode = mix(mix(vec3(0.93, 0.74, 0.42), vec3(0.78, 0.5, 0.22), n.mul(0.6).add(top.mul(0.3))), vec3(0.25, 0.14, 0.08), char.mul(0.85));
+    mat.positionNode = positionLocal.add(normalLocal.mul(n.sub(0.5).mul(0.06)));
+    const crust = new THREE.Mesh(new THREE.TorusGeometry(RIM_R + 0.05, 0.27, 24, 220), mat);
+    crust.scale.z = 0.8;
+    return crust;
+  }
+
+  /** Pizza toppings along each slice seam: pepperoni, olives and basil, away from the names. */
+  private makeToppings(slices: number) {
+    const g = new THREE.Group();
+    if (slices < 2) return g;
+    const seg = (Math.PI * 2) / slices;
+    const pepMat = new THREE.MeshStandardNodeMaterial({ roughness: 0.55 });
+    pepMat.colorNode = mix(vec3(0.72, 0.12, 0.1), vec3(0.45, 0.06, 0.05), step(0.75, mx_noise_float(positionGeometry.mul(40)).mul(0.5).add(0.5)));
+    const oliveMat = new THREE.MeshStandardNodeMaterial({ color: '#1e1c1a', roughness: 0.35 });
+    const basilMat = new THREE.MeshStandardNodeMaterial({ color: '#3f8a2c', roughness: 0.6, side: THREE.DoubleSide });
+    const pep = new THREE.CylinderGeometry(0.17, 0.17, 0.035, 20).rotateX(Math.PI / 2);
+    const olive = new THREE.TorusGeometry(0.06, 0.03, 8, 14);
+    const basil = new THREE.CircleGeometry(0.1, 12).scale(1.6, 0.8, 1);
+    const z = this.frontZ + 0.03;
+    for (let k = 0; k < slices; k++) {
+      const a = k * seg;
+      const at = (r: number, da = 0) => [Math.cos(a + da) * r, Math.sin(a + da) * r] as const;
+      const [x1, y1] = at(slices > 10 ? 1.9 : 1.6);
+      const p1 = new THREE.Mesh(pep, pepMat);
+      p1.position.set(x1, y1, z);
+      g.add(p1);
+      if (slices <= 10) {
+        const [x2, y2] = at(2.4);
+        const p2 = new THREE.Mesh(pep, pepMat);
+        p2.position.set(x2, y2, z);
+        g.add(p2);
+      }
+      const [ox, oy] = at(1.15, 0.08);
+      const o = new THREE.Mesh(olive, oliveMat);
+      o.position.set(ox, oy, z);
+      g.add(o);
+      const [bx, by] = at(2.05, -0.05);
+      const b = new THREE.Mesh(basil, basilMat);
+      b.position.set(bx, by, z + 0.01);
+      b.rotation.z = a + 0.6;
+      g.add(b);
+    }
+    return g;
+  }
+
   /** A neon tube around the wheel: a glowing glass core in a dark housing, humming faintly. */
   private makeNeonRim(n: NonNullable<WheelStyle['neonRim']>) {
     const g = new THREE.Group();
@@ -936,7 +1036,7 @@ export class Wheel {
   private applyPointer(kind: WheelStyle['pointer']) {
     for (const o of this.flapperDefault) o.visible = !kind;
     if (kind && !this.pointers.has(kind)) {
-      const shape = { icicle: () => this.makeIcicle(), scythe: () => this.makeScythe(), candycane: () => this.makeCandyCane(), anchor: () => this.makeAnchor(), comet: () => this.makeComet(), horseshoe: () => this.makeHorseshoe(), leaf: () => this.makeLeaf(), ankh: () => this.makeAnkh() }[kind]();
+      const shape = { icicle: () => this.makeIcicle(), scythe: () => this.makeScythe(), candycane: () => this.makeCandyCane(), anchor: () => this.makeAnchor(), comet: () => this.makeComet(), horseshoe: () => this.makeHorseshoe(), leaf: () => this.makeLeaf(), ankh: () => this.makeAnkh(), balloon: () => this.makeBalloon(), bolt: () => this.makeBolt(), pixel: () => this.makePixelArrow(), cutter: () => this.makeCutter() }[kind]();
       this.pointers.set(kind, shape);
       this.flapper.add(shape);
     }
@@ -996,6 +1096,66 @@ export class Wheel {
       g.add(fluke);
     }
     g.add(new THREE.Mesh(new THREE.ConeGeometry(0.045, 0.1, 6).rotateZ(Math.PI).translate(0, -0.74, 0), iron)); // the crown's point
+    return g;
+  }
+
+  /** A hot-air balloon: striped envelope at the pivot, ropes, and the basket pointing at the pins. */
+  private makeBalloon() {
+    const g = new THREE.Group();
+    const env = new THREE.MeshStandardNodeMaterial({ roughness: 0.5 });
+    const ang = atan(positionLocal.z, positionLocal.x);
+    env.colorNode = mix(vec3(0.95, 0.25, 0.25), vec3(1, 0.85, 0.3), step(0.5, fract(ang.mul(8 / (Math.PI * 2)))));
+    g.add(new THREE.Mesh(new THREE.SphereGeometry(0.22, 20, 16).scale(1, 1.15, 1).translate(0, 0.05, 0), env));
+    const rope = new THREE.MeshStandardNodeMaterial({ color: '#5a4630', roughness: 0.9 });
+    for (const x of [-0.1, 0.1]) g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.38, 4).rotateZ(x * 0.6).translate(x * 0.7, -0.38, 0), rope));
+    g.add(new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.12, 0.1).translate(0, -0.62, 0), new THREE.MeshStandardNodeMaterial({ color: '#8a5a2b', roughness: 0.8 })));
+    g.add(new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.08, 6).rotateZ(Math.PI).translate(0, -0.72, 0), rope));
+    return g;
+  }
+
+  /** A lightning bolt, zigzagging down to a point. */
+  private makeBolt() {
+    const s = new THREE.Shape();
+    s.moveTo(-0.06, 0.2);
+    s.lineTo(0.16, 0.2);
+    s.lineTo(0.04, -0.1);
+    s.lineTo(0.17, -0.1);
+    s.lineTo(-0.05, -0.76);
+    s.lineTo(0.0, -0.3);
+    s.lineTo(-0.13, -0.3);
+    s.closePath();
+    const geo = new THREE.ExtrudeGeometry(s, { depth: 0.05, bevelEnabled: true, bevelThickness: 0.015, bevelSize: 0.015, bevelSegments: 2 }).translate(0, 0, -0.025);
+    const mat = new THREE.MeshBasicNodeMaterial();
+    mat.colorNode = vec3(1, 0.92, 0.35).mul(sin(time.mul(30)).mul(0.15).add(1.5).add(this.uWin.mul(1.5)));
+    return new THREE.Mesh(geo, mat);
+  }
+
+  /** A blocky pixel arrow pointing down, built from cubes. */
+  private makePixelArrow() {
+    const rows: [number, number][] = [
+      [0.12, 1],
+      [0.0, 1],
+      [-0.12, 1],
+      [-0.24, 5],
+      [-0.36, 3],
+      [-0.48, 1],
+    ];
+    const cubes = rows.flatMap(([y, w]) => Array.from({ length: w }, (_, i) => new THREE.BoxGeometry(0.115, 0.115, 0.12).translate((i - (w - 1) / 2) * 0.12, y - 0.2, 0)));
+    const mat = new THREE.MeshStandardNodeMaterial({ roughness: 0.5, flatShading: true });
+    mat.colorNode = this.uFlapper;
+    mat.emissiveNode = this.uFlapper.mul(float(0.2).add(this.uWin.mul(0.8)));
+    return new THREE.Mesh(mergeGeometries(cubes)!, mat);
+  }
+
+  /** A pizza cutter: handle up, the round blade at the bottom resting on the pins. */
+  private makeCutter() {
+    const g = new THREE.Group();
+    const handle = new THREE.MeshStandardNodeMaterial({ color: '#c0392b', roughness: 0.45 });
+    g.add(new THREE.Mesh(new THREE.CapsuleGeometry(0.055, 0.32, 4, 10).translate(0, 0.05, 0), handle));
+    const steel = new THREE.MeshStandardNodeMaterial({ color: '#b8bcc4', metalness: 0.7, roughness: 0.3 });
+    g.add(new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.22, 0.05).translate(0, -0.28, 0), steel));
+    g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.025, 32).rotateX(Math.PI / 2).translate(0, -0.5, 0), steel));
+    g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.06, 10).rotateX(Math.PI / 2).translate(0, -0.5, 0), handle));
     return g;
   }
 

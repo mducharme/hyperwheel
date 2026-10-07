@@ -5,7 +5,9 @@ import {
   fog,
   fract,
   Fn,
+  length,
   mix,
+  pow,
   mx_fractal_noise_float,
   mx_noise_float,
   positionGeometry,
@@ -24,7 +26,7 @@ import {
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { Theme, ThemeScene } from '../types';
 import { makeLights, makeStand, rgb } from '../shared';
-import { lowRes } from '../../fx/nodes';
+import { lowRes, starField } from '../../fx/nodes';
 import { Particles } from '../../fx/Particles';
 import { uSpeed, uWin } from '../../engine/globals';
 import { SCALES } from '../../audio/ChipSynth';
@@ -43,22 +45,35 @@ const STREET_X = 8.6;
 // ------------------------------------------------------------------ sky & land
 
 function sky() {
-  const day = Fn(() => {
+  const aspect = screenSize.x.div(screenSize.y);
+  const dusk = Fn(() => {
     const uvS = screenUV; // y grows downward
-    const p = vec2(uvS.x.mul(screenSize.x.div(screenSize.y)), uvS.y);
-    let col: N = mix(rgb('#2a73c9'), rgb('#bfe0f2'), smoothstep(0.0, 0.62, uvS.y));
-    const wisps = mx_fractal_noise_float(vec3(p.mul(vec2(0.9, 5)).add(vec2(time.mul(0.006), 0)), 0), 3, 2, 0.5);
-    col = mix(col, rgb('#ffffff'), smoothstep(0.15, 0.6, wisps).mul(smoothstep(0.55, 0.15, uvS.y)).mul(0.6));
+    const p = vec2(uvS.x.mul(aspect), uvS.y);
+    // sunset: indigo overhead, through magenta and orange to a gold horizon
+    const h = smoothstep(0.0, 0.34, uvS.y);
+    let col: N = mix(rgb('#1d1b4a'), rgb('#8a3b78'), smoothstep(0.0, 0.35, h));
+    col = mix(col, rgb('#f26b3a'), smoothstep(0.35, 0.75, h));
+    col = mix(col, rgb('#ffc56b'), smoothstep(0.75, 1, h));
+    // the glow around the low sun
+    const toSun = length(p.sub(vec2(aspect.mul(0.74), 0.24)));
+    col = col.add(rgb('#ffb35c').mul(pow(float(1).sub(toSun.min(1)), 4).mul(0.9)));
+    // long streaks of cloud, lit pink and orange from below
+    const wisps = mx_fractal_noise_float(vec3(p.mul(vec2(0.9, 6)).add(vec2(time.mul(0.006), 0)), 0), 3, 2, 0.5);
+    const cloudCol = mix(rgb('#5a2a5a'), rgb('#ff8a5c'), smoothstep(0.05, 0.3, uvS.y));
+    col = mix(col, cloudCol, smoothstep(0.15, 0.55, wisps).mul(smoothstep(0.3, 0.05, uvS.y)).mul(0.7));
     return vec4(col, 1);
   });
-  return lowRes(day()).rgb;
+  // the sun itself and the first stars stay sharp
+  const p = vec2(screenUV.x.mul(aspect), screenUV.y);
+  const sun = smoothstep(0.062, 0.055, length(p.sub(vec2(aspect.mul(0.74), 0.24))));
+  return lowRes(dusk()).rgb.add(rgb('#fff1c4').mul(sun.mul(2.5))).add(vec3(starField(0.998, 2.5, 0.8).mul(smoothstep(0.25, 0.0, screenUV.y))));
 }
 
 function makeGround() {
   const m = new THREE.MeshStandardNodeMaterial({ roughness: 1 });
   const xz = positionWorld.xz;
   const n = mx_fractal_noise_float(vec3(xz.mul(0.2), 0), 2, 2, 0.5).mul(0.5).add(0.5);
-  let col: N = mix(rgb('#c98a55'), rgb('#e0a96d'), n);
+  let col: N = mix(rgb('#a8663e'), rgb('#c98a55'), n);
   // wagon ruts down the middle of the street
   const rut = (x: number) => smoothstep(0.25, 0.05, abs(xz.x.sub(x).add(mx_noise_float(vec3(xz.y.mul(0.2), 0, 0)).mul(0.3))));
   col = mix(col, rgb('#9c6a40'), rut(-1.3).max(rut(1.3)).mul(smoothstep(-2, -6, xz.y)).mul(0.55));
@@ -75,7 +90,8 @@ function makeGround() {
 function makeMesas() {
   const m = new THREE.MeshStandardNodeMaterial({ roughness: 1, flatShading: true });
   const strata = sin(positionWorld.y.mul(2.2).add(mx_noise_float(positionWorld.mul(0.08)).mul(2))).mul(0.5).add(0.5);
-  m.colorNode = mix(rgb('#a8452c'), rgb('#d27a4b'), strata);
+  // backlit by the setting sun: deep red-violet faces, the strata just visible
+  m.colorNode = mix(rgb('#5a2632'), rgb('#8a3a3a'), strata);
   const g = new THREE.Group();
   for (const [x, z, w, h, d] of [
     [-55, -120, 30, 22, 14],
@@ -169,7 +185,9 @@ function makeBuilding(name: string, paint: string, side: number, z: number, widt
   sign.rotation.y = -Math.PI / 2;
   g.add(sign);
   // windows and a door
-  const glass = new THREE.MeshStandardNodeMaterial({ color: '#1e2a33', roughness: 0.2, metalness: 0.3 });
+  // lamplight inside, flickering a little
+  const glass = new THREE.MeshStandardNodeMaterial({ color: '#2a1a10', roughness: 0.3 });
+  glass.emissiveNode = rgb('#ffa94d').mul(float(1.4).add(sin(time.mul(7).add(z * 3)).mul(0.08)).add(sin(time.mul(13.7).add(z)).mul(0.06)));
   for (const wz of [-width * 0.28, width * 0.28]) {
     const win = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 1.4), glass);
     win.position.set(-0.14, 2.2, wz);
@@ -187,6 +205,10 @@ function makeBuilding(name: string, paint: string, side: number, z: number, widt
   roof.rotation.z = 0.08;
   g.add(roof);
   for (const pz of [-width / 2, width / 2]) g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 3.3, 6).translate(-1.9, 1.65, pz), wood));
+  // a lantern hanging from the porch roof
+  const lantern = new THREE.Mesh(new THREE.SphereGeometry(0.16, 10, 8), new THREE.MeshBasicNodeMaterial({ color: new THREE.Color('#ffb35c').multiplyScalar(4) }));
+  lantern.position.set(-1.8, 2.85, width * 0.25);
+  g.add(lantern);
   g.add(new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.2, width + 0.4).translate(-1, 0.1, 0), wood));
   g.position.set(side * STREET_X, 0, z);
   // built facing -X: turn the ones on the left around so every false front faces the street
@@ -318,7 +340,7 @@ export const west: Theme<WestScene> = {
     rivets: '#3a3a3e',
     pointer: 'horseshoe',
   },
-  post: { bloom: [0.22, 0.4, 0.93], exposure: 0.92, aberration: 0.6, vignette: 0.45 },
+  post: { bloom: [0.4, 0.45, 0.82], exposure: 0.95, aberration: 0.6, vignette: 0.55 },
   character: { spot: [0, 0.22, 1.6], entrance: 'pop' },
   tick: 'knock',
   song: {
@@ -341,8 +363,9 @@ export const west: Theme<WestScene> = {
   createScene({ scene, center }) {
     const group = new THREE.Group();
     scene.backgroundNode = sky();
-    scene.fogNode = fog(rgb('#e9c9a0'), rangeFogFactor(60, 200));
-    scene.environmentIntensity = 0.35;
+    // warm dusty haze toward the sunset
+    scene.fogNode = fog(rgb('#c96a48'), rangeFogFactor(70, 300));
+    scene.environmentIntensity = 0.22;
 
     const tnt = makeTnt();
     group.add(makeGround(), makeMesas(), makeCacti(), makeTown(), makeWaterTower(), tnt.group);
@@ -384,7 +407,7 @@ export const west: Theme<WestScene> = {
       mode: 'face',
       tint: 1,
       intensity: 0.8,
-      colors: ['#e6c9a0'],
+      colors: ['#ffb27a'],
       emitters: [{ at: [0, 0.3, -12], box: [14, 0.2, 10], dir: [1, 0.3, 0], spread: 0.5, speed: [0.5, 1.5] }],
       size: [1, 2.4],
       gravity: [0.4, 0.15, 0],
@@ -405,8 +428,14 @@ export const west: Theme<WestScene> = {
 
     let fuse = -1; // seconds until it blows
     let regrow = -1; // seconds until a fresh bundle appears
-    const boost = makeLights(group, ['#fff1d6', 1.9], []);
-    group.add(new THREE.HemisphereLight('#bfe0f2', '#b9784a', 0.7));
+    // golden-hour key on the stage, lantern pools on the porches, and the low sun rim-lighting the town from behind
+    const boost = makeLights(group, ['#ffc58a', 1.35], [
+      ['#ffa94d', 10, [-STREET_X + 1.5, 2.8, -3]],
+      ['#ffa94d', 10, [STREET_X - 1.5, 2.8, -3]],
+    ]);
+    const sunLight = new THREE.DirectionalLight('#ff8a4a', 2.2);
+    sunLight.position.set(40, 6, -120);
+    group.add(sunLight, new THREE.HemisphereLight('#8a5aa0', '#5a3020', 0.5));
 
     return {
       group,

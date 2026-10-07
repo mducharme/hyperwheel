@@ -7,6 +7,7 @@ import { getTheme, prefetchThemes } from './themes';
 import { persist, store } from './app/store';
 import { loadSceneFont } from './themes/fonts';
 import { debug } from './debug';
+import { routeTheme } from './app/route';
 
 const debugParam = new URLSearchParams(location.search).get('debug');
 if (debugParam !== null) {
@@ -34,7 +35,7 @@ async function warmDanceLibrary() {
 
 // Start downloading the scene we'll most likely show while the GPU initialises.
 // start on the first scene's code and wheel font right away, in parallel with everything else
-const firstTheme = getTheme(store.lastTheme ?? 'synthwave');
+const firstTheme = getTheme(routeTheme() ?? store.lastTheme ?? 'synthwave');
 void firstTheme.load();
 void loadSceneFont(firstTheme.font);
 

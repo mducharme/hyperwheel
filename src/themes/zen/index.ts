@@ -29,7 +29,7 @@ import {
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { Theme, ThemeScene } from '../types';
 import { makeLights, makeStand, rgb, taperedTube } from '../shared';
-import { lowRes } from '../../fx/nodes';
+import { lowRes, starField } from '../../fx/nodes';
 import { Particles } from '../../fx/Particles';
 import { uSpeed, uWin } from '../../engine/globals';
 import { SCALES } from '../../audio/ChipSynth';
@@ -55,13 +55,15 @@ function sky() {
   const dusk = Fn(() => {
     const uvS = screenUV; // y grows downward
     const p = vec2(uvS.x.mul(screenSize.x.div(screenSize.y)), uvS.y);
-    let col: N = mix(rgb('#6f6aa8'), rgb('#f2b6c4'), smoothstep(0.0, 0.55, uvS.y));
-    col = mix(col, rgb('#ffd8b8'), smoothstep(0.45, 0.66, uvS.y));
+    // late twilight: indigo overhead, violet, then a last peach glow on the horizon
+    let col: N = mix(rgb('#141a44'), rgb('#5a4488'), smoothstep(0.0, 0.4, uvS.y));
+    col = mix(col, rgb('#e89aa6'), smoothstep(0.35, 0.6, uvS.y));
+    col = mix(col, rgb('#ffc8a0'), smoothstep(0.55, 0.68, uvS.y));
     const n = mx_fractal_noise_float(vec3(p.mul(vec2(1.1, 4.5)).add(vec2(time.mul(0.004), 0)), 0), 3, 2, 0.5);
-    col = mix(col, rgb('#ffe4ec'), smoothstep(0.15, 0.55, n).mul(smoothstep(0.55, 0.2, uvS.y)).mul(0.45));
+    col = mix(col, rgb('#c88aa8'), smoothstep(0.15, 0.55, n).mul(smoothstep(0.55, 0.2, uvS.y)).mul(0.3));
     return vec4(col, 1);
   });
-  return lowRes(dusk()).rgb;
+  return lowRes(dusk()).rgb.add(vec3(starField(0.997, 2.5, 1).mul(smoothstep(0.3, 0.0, screenUV.y))));
 }
 
 function makeGround() {
@@ -73,10 +75,10 @@ function makeGround() {
   const near = smoothstep(2.4, 1.6, d);
   const lines = mix(sin(xz.y.mul(13)), sin(d.mul(13)), near);
   const groove = smoothstep(0.55, 1, lines).mul(0.14);
-  const sand = rgb('#e8ddcb').mul(float(1).sub(groove)).add(mx_noise_float(vec3(xz.mul(3), 0)).mul(0.02));
+  const sand = rgb('#b4a998').mul(float(1).sub(groove)).add(mx_noise_float(vec3(xz.mul(3), 0)).mul(0.02));
   // the raked bed is a rectangle with soft moss all around it
   const bed = smoothstep(13, 12, abs(xz.x)).mul(smoothstep(-15, -14, xz.y)).mul(smoothstep(6, 5, xz.y));
-  const moss = mix(rgb('#5e7d4a'), rgb('#7c9a5e'), mx_fractal_noise_float(vec3(xz.mul(0.4), 0), 2, 2, 0.5).mul(0.5).add(0.5));
+  const moss = mix(rgb('#3e5a34'), rgb('#56704a'), mx_fractal_noise_float(vec3(xz.mul(0.4), 0), 2, 2, 0.5).mul(0.5).add(0.5));
   let col: N = mix(moss, sand, bed);
   // the pond floor: dark water seen from above
   const pond = smoothstep(POND_R + 0.05, POND_R - 0.1, length(xz.sub(vec2(POND.x, POND.z))));
@@ -123,7 +125,8 @@ function makePond(uRipple: N) {
     return exp(d.sub(t.mul(0.55)).mul(20).pow(2).negate()).mul(exp(t.mul(-1.2))).mul(t.greaterThan(0).select(float(1), float(0)));
   };
   const sheen = mx_noise_float(vec3(uv().mul(5), time.mul(0.2))).mul(0.5).add(0.5);
-  water.colorNode = mix(rgb('#2b5a5c'), rgb('#e9b9c8'), sheen.mul(0.3).add(d.mul(0.15))).add(vec3(ring(0).add(ring(1)).add(ring(2)).mul(0.5)));
+  // dark water holding the twilight and the warm lantern light
+  water.colorNode = mix(rgb('#10283a'), rgb('#ff9a6a'), sheen.mul(0.25).add(d.mul(0.1))).add(vec3(ring(0).add(ring(1)).add(ring(2)).mul(0.5)));
   water.opacityNode = float(0.62);
   const surface = new THREE.Mesh(new THREE.CircleGeometry(POND_R, 48).rotateX(-Math.PI / 2), water);
   surface.position.set(POND.x, 0.07, POND.z);
@@ -181,6 +184,20 @@ function makeTorii() {
   top.computeVertexNormals();
   g.add(new THREE.Mesh(top.translate(0, 6.3, 0), black));
   g.add(new THREE.Mesh(new THREE.BoxGeometry(6.6, 0.3, 0.5).translate(0, 5.9, 0), red));
+  // paper lanterns hanging under the nuki, glowing red-orange
+  const paper = new THREE.MeshBasicNodeMaterial();
+  paper.colorNode = mix(rgb('#ff5a3a'), rgb('#ffb36b'), smoothstep(-0.3, 0.3, positionLocal.y)).mul(sin(time.mul(3)).mul(0.1).add(2.4));
+  const cap = new THREE.MeshStandardNodeMaterial({ color: '#1e1b1c', roughness: 0.6 });
+  for (const lx of [-1.5, 0, 1.5]) {
+    const l = new THREE.Mesh(new THREE.SphereGeometry(0.36, 16, 12).scale(1, 1.3, 1), paper);
+    l.position.set(lx, 4.05, 0);
+    g.add(l);
+    g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.08, 12).translate(lx, 4.55, 0), cap));
+    g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.3, 4).translate(lx, 4.72, 0), cap));
+  }
+  const glow = new THREE.PointLight('#ff8a4a', 14, 12, 1.6);
+  glow.position.set(0, 4, 0.6);
+  g.add(glow);
   g.position.set(-9, 0, -17);
   g.rotation.y = 0.35;
   return g;
@@ -232,11 +249,11 @@ function makeStoneLantern(x: number, z: number) {
   g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.2, 1.1, 8).translate(0, 0.85, 0), stone));
   g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.36, 0.18, 6).translate(0, 1.48, 0), stone));
   const glow = new THREE.MeshBasicNodeMaterial();
-  glow.colorNode = rgb('#ffcf8a').mul(sin(time.mul(7).add(x)).mul(0.08).add(1.6));
+  glow.colorNode = rgb('#ffcf8a').mul(sin(time.mul(7).add(x)).mul(0.15).add(3));
   g.add(new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.42, 0.5).translate(0, 1.78, 0), glow));
   g.add(new THREE.Mesh(new THREE.ConeGeometry(0.62, 0.42, 6).translate(0, 2.2, 0), stone));
   g.add(new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 6).translate(0, 2.45, 0), stone));
-  const light = new THREE.PointLight('#ffb36b', 3, 7, 1.6);
+  const light = new THREE.PointLight('#ffb36b', 9, 10, 1.6);
   light.position.set(0, 1.8, 0.4);
   g.add(light);
   g.position.set(x, 0, z);
@@ -289,7 +306,7 @@ export const zen: Theme<ZenScene> = {
     pins: 'pebbles',
     pointer: 'leaf',
   },
-  post: { bloom: [0.3, 0.45, 0.9], exposure: 0.95, aberration: 0.5, vignette: 0.5 },
+  post: { bloom: [0.5, 0.45, 0.8], exposure: 1, aberration: 0.5, vignette: 0.6 },
   character: { spot: [0, 0.22, 1.6], entrance: 'rise' },
   tick: 'marimba',
   song: {
@@ -312,14 +329,14 @@ export const zen: Theme<ZenScene> = {
   createScene({ scene, center }) {
     const group = new THREE.Group();
     scene.backgroundNode = sky();
-    scene.fogNode = fog(rgb('#e8c6d0'), rangeFogFactor(30, 115));
-    scene.environmentIntensity = 0.35;
+    scene.fogNode = fog(rgb('#4a3f6e'), rangeFogFactor(30, 130));
+    scene.environmentIntensity = 0.2;
 
     const uRipple = uniform(-1);
     const uGust = uniform(0);
     group.add(makeGround(), makeRocks(), makePond(uRipple), makeTorii(), makeBamboo(uGust));
     group.add(makeCherryTree(-12.5, -7, 1.1), makeCherryTree(12, -4.5, 1), makeCherryTree(4, -23, 1.3), makeCherryTree(-18, -24, 1.2));
-    group.add(makeStoneLantern(-5.6, 1.4), makeStoneLantern(9.2, -3.5));
+    group.add(makeStoneLantern(-5.6, 1.4), makeStoneLantern(9.2, -3.5), makeStoneLantern(-3.5, -12), makeStoneLantern(13, -14));
     const koi = makeKoi();
     for (const k of koi) group.add(k.fish);
 
@@ -362,7 +379,28 @@ export const zen: Theme<ZenScene> = {
       spin: 3,
       wobble: 0.6,
     });
-    group.add(petals.object, flurry.object);
+    // fireflies drifting over the pond and the moss
+    const fireflies = new Particles({
+      count: 45,
+      atlas: sprites,
+      cells: [6],
+      loop: true,
+      mode: 'face',
+      blend: 'additive',
+      intensity: 3,
+      colors: ['#d8ff7a', '#fff1a0'],
+      mirror: false,
+      emitters: [
+        { at: [POND.x, 0.9, POND.z], box: [3, 0.7, 2.5], dir: [0, 1, 0], spread: 1.5, speed: [0.1, 0.3], weight: 2 },
+        { at: [0, 1.5, -8], box: [13, 1.2, 6], dir: [0, 1, 0], spread: 1.5, speed: [0.1, 0.3], weight: 2 },
+      ],
+      size: [0.05, 0.09],
+      gravity: [0, 0.02, 0],
+      drag: 0.5,
+      life: [3, 6],
+      wobble: 1.2,
+    });
+    group.add(petals.object, flurry.object, fireflies.object);
 
     // idle moments: a heron glides over, a koi stirs the pond, a breeze through the bamboo
     const moments = idleMoments([8, 16]);
@@ -378,8 +416,9 @@ export const zen: Theme<ZenScene> = {
     moments.add(ripple);
     moments.add(() => gust(3));
 
-    const lights = makeLights(group, ['#ffd9cc', 1.4], []);
-    group.add(new THREE.HemisphereLight('#c9c0ee', '#b9a98c', 0.75));
+    // twilight: a soft lilac key, a deep blue sky fill; the lanterns bring the warmth
+    const lights = makeLights(group, ['#c8b8ff', 0.8], []);
+    group.add(new THREE.HemisphereLight('#5a5a9a', '#3a2a2a', 0.4));
 
     return {
       group,
@@ -391,6 +430,7 @@ export const zen: Theme<ZenScene> = {
         moments.update(f);
         petals.update(f.time);
         flurry.update(f.time);
+        fireflies.update(f.time);
         if (uRipple.value >= 0) uRipple.value = uRipple.value > 4 ? -1 : uRipple.value + f.dt;
         gustLeft = Math.max(0, gustLeft - f.dt);
         uGust.value += ((gustLeft > 0 ? 1 : 0) - uGust.value) * (1 - Math.exp(-f.dt * 1.5));

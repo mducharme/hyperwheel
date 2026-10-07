@@ -6,7 +6,7 @@ import type { PirateScene } from '.';
 
 type V3 = [number, number, number];
 /** Muzzle of each cannon (they sit inside the rails, barrels pointing out to sea). */
-const muzzles: V3[] = CANNONS.map(([side, z]) => [side * 7.85, 0.65, z]);
+const muzzles: V3[] = CANNONS.map(([side, z]) => [side * 8.05, 0.74, z]);
 
 export const celebrations = (world: PirateScene): Celebration[] => {
   const sprites = atlas();

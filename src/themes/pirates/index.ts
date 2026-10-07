@@ -1,6 +1,10 @@
 import * as THREE from 'three/webgpu';
 import {
   abs,
+  atan,
+  dot,
+  normalView,
+  positionViewDirection,
   float,
   floor,
   fog,
@@ -30,7 +34,7 @@ import {
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { Theme, ThemeScene } from '../types';
 import { makeLights, makeStand, rgb, taperedTube } from '../shared';
-import { lowRes } from '../../fx/nodes';
+import { lowRes, starField } from '../../fx/nodes';
 import { Particles } from '../../fx/Particles';
 import { uSpeed, uWin } from '../../engine/globals';
 import { SCALES } from '../../audio/ChipSynth';
@@ -42,7 +46,7 @@ import { celebrations } from './celebrations';
 
 type N = any;
 
-const SUN = new THREE.Vector3(-26, 7, -110);
+const MOON = new THREE.Vector3(-46, 16, -110);
 const SEA_Y = -2.2;
 /** Inside faces of the side rails, and the stern rail behind the mast. */
 const RAIL_X = 7.6;
@@ -70,50 +74,74 @@ function beam(a: THREE.Vector3, b: THREE.Vector3, r: number) {
 // ------------------------------------------------------------------ sky & sea
 
 function sky() {
-  const glow = (uvS: N) => smoothstep(0.15, 0.62, uvS.y); // screenUV.y grows downward
+  const horizon = (uvS: N) => smoothstep(0.1, 0.62, uvS.y); // screenUV.y grows downward
+  // a clear moonlit night: deep navy overhead, a cool glow toward the horizon, clouds edged in silver
   const clouds = Fn(() => {
     const uvS = screenUV;
     const p = vec2(uvS.x.mul(screenSize.x.div(screenSize.y)), uvS.y);
-    let col: N = mix(rgb('#2f5f8f'), rgb('#f2b27a'), glow(uvS));
-    col = mix(col, rgb('#ffe2a8'), smoothstep(0.5, 0.66, uvS.y));
+    let col: N = mix(rgb('#040a1c'), rgb('#18345a'), horizon(uvS));
+    col = mix(col, rgb('#2c5378'), smoothstep(0.5, 0.66, uvS.y));
     const n = mx_fractal_noise_float(vec3(p.mul(vec2(1.4, 5)).add(vec2(time.mul(0.006), 0)), 0), 4, 2, 0.5);
-    // clouds lit pink-gold from below by the low sun
-    const lit = mix(rgb('#ffd1a1'), rgb('#ff9f8a'), glow(uvS));
-    col = mix(col, lit, smoothstep(0.1, 0.5, n).mul(smoothstep(0.05, 0.3, uvS.y)).mul(float(1).sub(smoothstep(0.45, 0.6, uvS.y))).mul(0.7));
+    const lit = mix(rgb('#5a6c8e'), rgb('#9fb0cf'), smoothstep(0.1, 0.5, n));
+    col = mix(col, lit, smoothstep(0.15, 0.55, n).mul(smoothstep(0.05, 0.3, uvS.y)).mul(float(1).sub(smoothstep(0.45, 0.6, uvS.y))).mul(0.45));
     return vec4(col, 1);
   });
-  return lowRes(clouds()).rgb;
+  return lowRes(clouds()).rgb.add(vec3(starField(0.996, 2.5, 1.2).mul(float(1).sub(horizon(screenUV)))));
 }
 
-function makeSun() {
+/** A big pale moon with soft markings and a cool halo. */
+function makeMoon() {
   const g = new THREE.Group();
   const mat = new THREE.MeshBasicNodeMaterial({ fog: false });
-  mat.colorNode = rgb('#fff1c4').mul(1.8);
-  g.add(new THREE.Mesh(new THREE.CircleGeometry(7, 48), mat));
+  const marks = mx_fractal_noise_float(vec3(uv().mul(5), 1), 3, 2, 0.5).mul(0.5).add(0.5);
+  mat.colorNode = mix(rgb('#f4f7ff'), rgb('#b9c2d8'), smoothstep(0.45, 0.7, marks)).mul(1.7);
+  g.add(new THREE.Mesh(new THREE.CircleGeometry(5.5, 48), mat));
   const halo = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false });
   const d = length(uv().sub(0.5)).mul(2);
-  halo.colorNode = rgb('#ffb36b').mul(pow(float(1).sub(smoothstep(0.15, 1, d)), 2.5)).mul(0.45);
+  halo.colorNode = rgb('#9fbfff').mul(pow(float(1).sub(smoothstep(0.12, 1, d)), 2.5)).mul(0.35);
   const h = new THREE.Mesh(new THREE.PlaneGeometry(70, 70), halo);
   h.position.z = -0.2;
   g.add(h);
-  g.position.copy(SUN);
+  g.position.copy(MOON);
   return g;
+}
+
+/** A striped lighthouse with a lamp and a beam that sweeps round. */
+function makeLighthouse() {
+  const g = new THREE.Group();
+  const tower = new THREE.MeshStandardNodeMaterial({ roughness: 0.8 });
+  tower.colorNode = mix(rgb('#e8e4dc'), rgb('#b8322a'), step(0.5, fract(positionLocal.y.mul(0.32))));
+  g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.9, 1.4, 9, 16).translate(0, 4.5, 0), tower));
+  const lamp = new THREE.MeshBasicNodeMaterial({ fog: false });
+  lamp.colorNode = rgb('#fff1c4').mul(4);
+  g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.75, 1, 12).translate(0, 9.5, 0), lamp));
+  g.add(new THREE.Mesh(new THREE.ConeGeometry(1.1, 1, 12).translate(0, 10.5, 0), new THREE.MeshStandardNodeMaterial({ color: '#2a2622', roughness: 0.6 })));
+  // the beam: a long cone from the lamp, brightest near it, soft at the edges
+  const beamMat = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false });
+  const facing = pow(abs(dot(normalView, positionViewDirection)), 1.5);
+  beamMat.colorNode = rgb('#fff1c4').mul(pow(uv().y, 1.6).mul(facing).mul(0.35));
+  const len = 70;
+  const beamGeo = new THREE.ConeGeometry(5, len, 20, 1, true).translate(0, -len / 2, 0).rotateZ(Math.PI / 2); // tip at the lamp, opening along +X
+  const beam = new THREE.Mesh(beamGeo, beamMat);
+  beam.position.y = 9.5;
+  g.add(beam);
+  return { group: g, beam };
 }
 
 function makeOcean() {
   const mat = new THREE.MeshBasicNodeMaterial();
   const xz = positionWorld.xz;
   const waves = mx_fractal_noise_float(vec3(xz.mul(vec2(0.18, 0.45)).add(vec2(time.mul(0.12), time.mul(0.3))), time.mul(0.08)), 3, 2, 0.5).mul(0.5).add(0.5);
-  let col: N = mix(rgb('#0e3a55'), rgb('#2d6f86'), waves);
-  col = mix(col, rgb('#f0a97a'), smoothstep(-40, -150, xz.y).mul(0.45)); // the sky mirrored far out
-  // a path of glitter from the sun to the ship
-  const pathX = float(SUN.x).mul(xz.y.div(SUN.z));
-  const width = mix(float(1.5), float(9), smoothstep(0, SUN.z, xz.y));
+  let col: N = mix(rgb('#030c18'), rgb('#0c2840'), waves);
+  col = mix(col, rgb('#1c3a5c'), smoothstep(-40, -150, xz.y).mul(0.6)); // the sky mirrored far out
+  // a shimmering path of moonlight from the moon to the ship
+  const pathX = float(MOON.x).mul(xz.y.div(MOON.z));
+  const width = mix(float(1.5), float(9), smoothstep(0, MOON.z, xz.y));
   const path = float(1).sub(smoothstep(0, 1, abs(xz.x.sub(pathX)).div(width)));
   const glitter = pow(mx_noise_float(vec3(xz.mul(vec2(2, 5)), time.mul(1.2))).mul(0.5).add(0.5), 6);
-  col = col.add(rgb('#ffd59a').mul(path.mul(glitter).mul(4)));
-  // whitecaps
-  col = mix(col, rgb('#e8f4f6'), smoothstep(0.82, 0.9, waves).mul(0.5));
+  col = col.add(rgb('#dfe9ff').mul(path.mul(glitter).mul(5)));
+  // faint crests catching the light
+  col = mix(col, rgb('#6f8fb0'), smoothstep(0.82, 0.9, waves).mul(0.35));
   mat.colorNode = col;
   const sea = new THREE.Mesh(new THREE.PlaneGeometry(420, 240), mat);
   sea.rotation.x = -Math.PI / 2;
@@ -124,12 +152,12 @@ function makeOcean() {
 /** A small island on the horizon with a couple of palms, in silhouette. */
 function makeIsland() {
   const g = new THREE.Group();
-  const land = new THREE.MeshStandardNodeMaterial({ color: '#3d4a3a', roughness: 1 });
+  const land = new THREE.MeshStandardNodeMaterial({ color: '#141c22', roughness: 1 });
   const hill = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), land);
   hill.scale.set(16, 4.5, 7);
   g.add(hill);
-  const trunkMat = new THREE.MeshStandardNodeMaterial({ color: '#2f2a24', roughness: 1 });
-  const leafMat = new THREE.MeshStandardNodeMaterial({ color: '#2e3d2c', roughness: 1, side: THREE.DoubleSide });
+  const trunkMat = new THREE.MeshStandardNodeMaterial({ color: '#15130f', roughness: 1 });
+  const leafMat = new THREE.MeshStandardNodeMaterial({ color: '#111a18', roughness: 1, side: THREE.DoubleSide });
   for (const [x, h, lean] of [
     [-3, 7, 0.25],
     [2, 6, -0.3],
@@ -146,7 +174,7 @@ function makeIsland() {
       g.add(leaf);
     }
   }
-  g.position.set(40, SEA_Y, -100);
+  g.position.set(22, SEA_Y, -100);
   return g;
 }
 
@@ -156,6 +184,8 @@ function makeShip() {
   const hull = new THREE.Mesh(new THREE.BoxGeometry(8, 1.6, 2.2), new THREE.MeshStandardNodeMaterial({ color: '#3b2716', roughness: 0.9 }));
   hull.position.y = 0.6;
   g.add(hull);
+  const port = new THREE.MeshBasicNodeMaterial({ color: new THREE.Color('#ffb35c').multiplyScalar(3) });
+  for (const x of [-2.5, -0.8, 0.9, 2.6]) g.add(new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.25, 0.05).translate(x, 0.75, 1.12), port));
   const sailMat = new THREE.MeshStandardNodeMaterial({ color: '#efe1c4', roughness: 0.9, side: THREE.DoubleSide });
   for (const [x, h] of [
     [-2, 7],
@@ -234,27 +264,86 @@ function makeMast() {
 
 function makeCannon(side: number) {
   const g = new THREE.Group();
-  const iron = new THREE.MeshStandardNodeMaterial({ color: '#22252a', metalness: 0.8, roughness: 0.45 });
-  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.3, 2, 16).rotateZ(-Math.PI / 2).translate(0.5, 0, 0), iron);
-  const lip = new THREE.Mesh(new THREE.TorusGeometry(0.21, 0.06, 8, 16).rotateY(Math.PI / 2).translate(1.5, 0, 0), iron);
+  const iron = new THREE.MeshStandardNodeMaterial({ metalness: 0.85, roughness: 0.45 });
+  iron.colorNode = mix(rgb('#1c1f24'), rgb('#33373d'), mx_noise_float(positionLocal.mul(6)).mul(0.5).add(0.5));
+  // a turned barrel: the knob at the breech, reinforcing rings, a flared muzzle with a dark bore
+  const profile = [
+    [0.001, -1.02],
+    [0.08, -1.0],
+    [0.1, -0.93],
+    [0.06, -0.86],
+    [0.05, -0.82],
+    [0.31, -0.8],
+    [0.33, -0.7],
+    [0.31, -0.62],
+    [0.29, -0.2],
+    [0.32, -0.18],
+    [0.32, -0.08],
+    [0.27, -0.06],
+    [0.22, 1.2],
+    [0.26, 1.26],
+    [0.28, 1.42],
+    [0.15, 1.44],
+    [0.15, 1.3],
+    [0.001, 1.3],
+  ].map(([r, y]) => new THREE.Vector2(r, y));
   const barrelGroup = new THREE.Group();
-  barrelGroup.add(barrel, lip);
-  barrelGroup.position.y = 0.72;
+  barrelGroup.add(new THREE.Mesh(new THREE.LatheGeometry(profile, 20).rotateZ(-Math.PI / 2).translate(0.2, 0, 0), iron));
+  barrelGroup.add(new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.8, 10).rotateX(Math.PI / 2).translate(0.15, 0, 0), iron)); // trunnions
+  barrelGroup.position.y = 0.78;
   g.add(barrelGroup);
+  // stepped carriage cheeks, a bed, axles and four iron-rimmed trucks
   const carriage = woodMat('#5a3418');
-  g.add(new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.45, 0.8).translate(0, 0.38, 0), carriage));
-  for (const x of [-0.45, 0.45]) {
+  const parts: THREE.BufferGeometry[] = [new THREE.BoxGeometry(1.5, 0.12, 0.62).translate(0, 0.3, 0)];
+  for (const z of [-0.36, 0.36]) {
+    parts.push(new THREE.BoxGeometry(1.4, 0.22, 0.1).translate(0, 0.42, z));
+    parts.push(new THREE.BoxGeometry(1.0, 0.18, 0.1).translate(-0.2, 0.62, z));
+    parts.push(new THREE.BoxGeometry(0.55, 0.14, 0.1).translate(-0.35, 0.78, z));
+  }
+  for (const x of [-0.5, 0.5]) parts.push(new THREE.CylinderGeometry(0.05, 0.05, 0.95, 8).rotateX(Math.PI / 2).translate(x, 0.2, 0));
+  g.add(new THREE.Mesh(mergeGeometries(parts)!, carriage));
+  const wheelWood = woodMat('#3f2412');
+  for (const x of [-0.5, 0.5]) {
     for (const z of [-0.45, 0.45]) {
-      const w = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.12, 12).rotateX(Math.PI / 2).translate(x, 0.2, z), carriage);
-      g.add(w);
+      g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.1, 14).rotateX(Math.PI / 2).translate(x, 0.2, z), wheelWood));
+      g.add(new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.025, 6, 18).translate(x, 0.2, z), iron));
     }
   }
-  g.scale.setScalar(0.9);
+  g.scale.setScalar(0.95);
   if (side < 0) g.rotation.y = Math.PI; // barrels point out to sea
   return { group: g, barrel: barrelGroup };
 }
 
+/** A small pyramid of cannonballs. */
+function makeShot() {
+  const iron = new THREE.MeshStandardNodeMaterial({ color: '#202328', metalness: 0.8, roughness: 0.4 });
+  const ball = new THREE.SphereGeometry(0.16, 12, 8);
+  const spots = [
+    [-0.16, 0.16, -0.16],
+    [0.16, 0.16, -0.16],
+    [-0.16, 0.16, 0.16],
+    [0.16, 0.16, 0.16],
+    [0, 0.39, 0],
+  ];
+  return new THREE.Mesh(mergeGeometries(spots.map(([x, y, z]) => ball.clone().translate(x, y, z)))!, iron);
+}
+
+/** A coil of rope lying on the deck. */
+function makeRope() {
+  const mat = new THREE.MeshStandardNodeMaterial({ roughness: 1 });
+  // a twist running along the strand
+  mat.colorNode = mix(rgb('#8a6a42'), rgb('#5e4428'), step(0.5, fract(uv().x.mul(160).add(uv().y.mul(2)))));
+  const pts: THREE.Vector3[] = [];
+  for (let i = 0; i <= 160; i++) {
+    const t = i / 160;
+    const a = t * Math.PI * 2 * 4;
+    const r = 0.5 - t * 0.28;
+    pts.push(new THREE.Vector3(Math.cos(a) * r, 0.06 + t * 0.12, Math.sin(a) * r));
+  }
+  return new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 320, 0.055, 6), mat);
+}
 function makeBarrel() {
+  const g = new THREE.Group();
   const profile = [
     [0, 0],
     [0.42, 0],
@@ -264,50 +353,95 @@ function makeBarrel() {
     [0.42, 1.2],
     [0, 1.2],
   ].map(([r, y]) => new THREE.Vector2(r, y));
-  const m = woodMat('#8a5a2e');
-  // iron hoops
-  const hoop = step(0.92, fract(positionLocal.y.mul(2.6).add(0.2)));
-  m.colorNode = mix(m.colorNode as N, rgb('#2b2b2e'), hoop);
-  return new THREE.Mesh(new THREE.LatheGeometry(profile, 18), m);
+  // vertical staves with dark joints, each its own shade
+  const m = new THREE.MeshStandardNodeMaterial({ roughness: 0.8 });
+  const around = atan(positionLocal.z, positionLocal.x).mul(14 / (Math.PI * 2));
+  const stave = floor(around);
+  const joint = smoothstep(0.9, 1, fract(around)).max(smoothstep(0.1, 0, fract(around)));
+  const grain = mx_noise_float(positionLocal.mul(vec3(4, 18, 4))).mul(0.1);
+  m.colorNode = mix(rgb('#8a5a2e').mul(float(0.85).add(hash(stave).mul(0.25)).add(grain)), rgb('#3b2414'), joint.mul(0.7));
+  g.add(new THREE.Mesh(new THREE.LatheGeometry(profile, 28), m));
+  // iron hoops, slightly proud of the wood
+  const iron = new THREE.MeshStandardNodeMaterial({ color: '#2b2b2e', metalness: 0.7, roughness: 0.5 });
+  for (const [y, r] of [
+    [0.1, 0.445],
+    [0.36, 0.505],
+    [0.84, 0.505],
+    [1.1, 0.445],
+  ]) g.add(new THREE.Mesh(new THREE.TorusGeometry(r, 0.025, 6, 32).rotateX(Math.PI / 2).translate(0, y, 0), iron));
+  // the lid: planks inside a rim
+  const lid = new THREE.MeshStandardNodeMaterial({ roughness: 0.85 });
+  lid.colorNode = rgb('#6e4524').mul(float(0.85).add(step(0.9, fract(positionLocal.x.mul(5))).mul(-0.35)));
+  g.add(new THREE.Mesh(new THREE.CircleGeometry(0.41, 24).rotateX(-Math.PI / 2).translate(0, 1.19, 0), lid));
+  return g;
 }
-
 /** A treasure chest with a hinged lid; `open` 0..1. */
 function makeChest(uOpen: N) {
   const g = new THREE.Group();
-  const wood = woodMat('#6b3d1d');
-  const gold = new THREE.MeshStandardNodeMaterial({ color: '#d9a33a', metalness: 0.9, roughness: 0.3 });
+  const wood = new THREE.MeshStandardNodeMaterial({ roughness: 0.8 });
+  // horizontal planks
+  const plank = fract(positionLocal.y.mul(6.5));
+  wood.colorNode = rgb('#6b3d1d').mul(float(0.9).add(mx_noise_float(positionLocal.mul(vec3(8, 1, 8))).mul(0.12)).sub(smoothstep(0.9, 1, plank).mul(0.4)));
+  const iron = new THREE.MeshStandardNodeMaterial({ color: '#2e2a26', metalness: 0.8, roughness: 0.45 });
+  const brass = new THREE.MeshStandardNodeMaterial({ color: '#d9a33a', metalness: 0.9, roughness: 0.3 });
   g.add(new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.7, 0.85).translate(0, 0.35, 0), wood));
-  for (const x of [-0.5, 0.5]) g.add(new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.74, 0.89).translate(x, 0.36, 0), gold));
-  // glowing gold heap inside, seen when the lid lifts
-  const heap = new THREE.MeshBasicNodeMaterial();
-  heap.colorNode = rgb('#ffcf5a').mul(float(0.6).add(uOpen.mul(1.8)));
-  g.add(new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.05, 0.7).translate(0, 0.68, 0), heap));
+  // iron bands and corner brackets, studded
+  const bands: THREE.BufferGeometry[] = [];
+  for (const x of [-0.45, 0.45]) bands.push(new THREE.BoxGeometry(0.1, 0.72, 0.87).translate(x, 0.36, 0));
+  for (const x of [-0.64, 0.64]) for (const z of [-0.41, 0.41]) bands.push(new THREE.BoxGeometry(0.06, 0.72, 0.06).translate(x, 0.36, z));
+  g.add(new THREE.Mesh(mergeGeometries(bands)!, iron));
+  const studs = new THREE.SphereGeometry(0.025, 6, 4);
+  g.add(new THREE.Mesh(mergeGeometries([-0.45, 0.45].flatMap((x) => [0.12, 0.35, 0.58].map((y) => studs.clone().translate(x, y, 0.44))))!, brass));
+  // the lock plate with a keyhole
+  g.add(new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.26, 0.03).translate(0, 0.52, 0.44), brass));
+  g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.02, 8).rotateX(Math.PI / 2).translate(0, 0.55, 0.46), iron));
+  // a heap of gold coins and a gem inside, glowing as the lid lifts
+  const heapMat = new THREE.MeshStandardNodeMaterial({ metalness: 0.9, roughness: 0.3 });
+  heapMat.colorNode = rgb('#e8b84a');
+  heapMat.emissiveNode = rgb('#ffb43a').mul(uOpen.mul(1.4).add(0.05));
+  const heap = new THREE.SphereGeometry(0.5, 20, 8, 0, Math.PI * 2, 0, Math.PI / 2).scale(1.15, 0.35, 0.75);
+  const hp = heap.attributes.position;
+  for (let i = 0; i < hp.count; i++) hp.setY(i, hp.getY(i) + Math.sin(i * 12.9898) * 0.02); // lumpy coins
+  heap.computeVertexNormals();
+  g.add(new THREE.Mesh(heap.translate(0, 0.62, 0), heapMat));
+  const gemMat = new THREE.MeshStandardNodeMaterial({ color: '#d0213a', roughness: 0.1, flatShading: true });
+  gemMat.emissiveNode = rgb('#ff3050').mul(uOpen.mul(1.5));
+  g.add(new THREE.Mesh(new THREE.OctahedronGeometry(0.1).translate(0.2, 0.8, 0.05), gemMat));
   const lid = new THREE.Group();
-  lid.add(new THREE.Mesh(new THREE.CylinderGeometry(0.43, 0.43, 1.3, 16, 1, false, 0, Math.PI).rotateZ(Math.PI / 2).translate(0, 0, 0.425), wood));
-  lid.add(new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.46, 0.89).translate(-0.5, 0.22, 0.425), gold));
-  lid.add(new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.46, 0.89).translate(0.5, 0.22, 0.425), gold));
+  lid.add(new THREE.Mesh(new THREE.CylinderGeometry(0.43, 0.43, 1.3, 20, 1, false, 0, Math.PI).rotateZ(Math.PI / 2).translate(0, 0, 0.425), wood));
+  lid.add(new THREE.Mesh(new THREE.CylinderGeometry(0.44, 0.44, 0.1, 20, 1, true, 0, Math.PI).rotateZ(Math.PI / 2).translate(-0.45, 0, 0.425), iron));
+  lid.add(new THREE.Mesh(new THREE.CylinderGeometry(0.44, 0.44, 0.1, 20, 1, true, 0, Math.PI).rotateZ(Math.PI / 2).translate(0.45, 0, 0.425), iron));
   lid.position.set(0, 0.7, -0.425); // hinge along the back edge
   g.add(lid);
+  // a few coins spilled on the deck
+  const coin = new THREE.CylinderGeometry(0.07, 0.07, 0.015, 12);
+  g.add(new THREE.Mesh(mergeGeometries([[0.75, 0.3], [0.9, 0.55], [0.6, 0.62], [-0.8, 0.5]].map(([x, z], i) => coin.clone().rotateX(i * 0.2).translate(x, 0.01, z)))!, brass));
   g.userData.lid = lid;
   g.position.copy(CHEST);
   g.rotation.y = 0.35;
   return g;
 }
-
 /** Hanging lanterns with flickering warm light. */
 function makeLanterns() {
   const g = new THREE.Group();
   const lights: THREE.PointLight[] = [];
   const frame = new THREE.MeshStandardNodeMaterial({ color: '#2a2622', metalness: 0.7, roughness: 0.5 });
   const flame = new THREE.MeshBasicNodeMaterial();
-  flame.colorNode = rgb('#ffc46b').mul(float(2.2).add(sin(time.mul(17)).mul(0.25)));
-  for (const s of [-1, 1]) {
-    const x = s * (RAIL_X - 0.2);
-    g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.5, 6).translate(x, 2.0, 0.8), frame));
-    g.add(new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.5, 0.34).translate(x, 2.9, 0.8), frame));
-    g.add(new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.38, 0.26).translate(x, 2.9, 0.8), flame));
-    const l = new THREE.PointLight('#ffb35c', 6, 12, 1.6);
-    l.position.set(x, 2.9, 1.2);
+  flame.colorNode = rgb('#ffc46b').mul(float(3).add(sin(time.mul(17)).mul(0.3)));
+  // two on the rails by the stage, two further aft, one hanging from the mast
+  const spots: [number, number, number][] = [
+    [-(RAIL_X - 0.2), 2.9, 0.8],
+    [RAIL_X - 0.2, 2.9, 0.8],
+    [-(RAIL_X - 0.2), 2.9, -8],
+    [RAIL_X - 0.2, 2.9, -9.5],
+    [MAST.x + 0.6, 5.2, MAST.z + 0.5],
+  ];
+  for (const [x, y, z] of spots) {
+    if (y < 4) g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.5, 6).translate(x, y - 0.9, z), frame));
+    g.add(new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.5, 0.34).translate(x, y, z), frame));
+    g.add(new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.38, 0.26).translate(x, y, z), flame));
+    const l = new THREE.PointLight('#ffa64d', 12, 14, 1.6);
+    l.position.set(x, y, z + 0.4);
     lights.push(l);
     g.add(l);
   }
@@ -422,7 +556,8 @@ export const pirates: Theme<PirateScene> = {
     frame: '#3b2414',
     helm: { handles: 8, wood: '#8b5a2b' },
   },
-  post: { bloom: [0.3, 0.4, 0.92], exposure: 0.92, aberration: 0.7, vignette: 0.5 },
+  // moonlit night: lanterns, the lighthouse and the moon path carry the bloom
+  post: { bloom: [0.5, 0.45, 0.8], exposure: 1, aberration: 0.7, vignette: 0.6 },
   character: { spot: [0, 0.22, 1.6], entrance: 'pop' },
   tick: 'knock',
   song: {
@@ -445,8 +580,8 @@ export const pirates: Theme<PirateScene> = {
   createScene({ scene, center }) {
     const group = new THREE.Group();
     scene.backgroundNode = sky();
-    scene.fogNode = fog(rgb('#e9b98a'), rangeFogFactor(60, 210));
-    scene.environmentIntensity = 0.4;
+    scene.fogNode = fog(rgb('#0e2036'), rangeFogFactor(60, 210));
+    scene.environmentIntensity = 0.18;
 
     const uOpen = uniform(0);
     const uWave = uniform(0);
@@ -456,7 +591,9 @@ export const pirates: Theme<PirateScene> = {
     const ship = makeShip();
     ship.position.set(-90, SEA_Y, -85);
     ship.visible = false;
-    sea.add(makeOcean(), makeSun(), makeIsland(), ship);
+    const lighthouse = makeLighthouse();
+    lighthouse.group.position.set(27, SEA_Y + 3.5, -100);
+    sea.add(makeOcean(), makeMoon(), makeIsland(), lighthouse.group, ship);
     group.add(sea);
 
     group.add(makeDeck(), makeRails(), makeMast());
@@ -475,6 +612,24 @@ export const pirates: Theme<PirateScene> = {
       b.position.set(x, 0, z);
       b.scale.setScalar(s);
       group.add(b);
+    }
+    // shot stacked by the guns, rope coiled by the mast
+    for (const [x, z] of [
+      [-6.7, -6],
+      [6.7, -6.3],
+    ]) {
+      const shot = makeShot();
+      shot.position.set(x, 0, z);
+      group.add(shot);
+    }
+    for (const [x, z, r] of [
+      [-1.6, -6],
+      [5.2, 3.4],
+    ]) {
+      const rope = makeRope();
+      rope.position.set(x, 0, z);
+      rope.rotation.y = r;
+      group.add(rope);
     }
     const crate = new THREE.Mesh(new THREE.BoxGeometry(1, 0.9, 1).translate(0, 0.45, 0), woodMat('#9b6b3a'));
     crate.position.set(6.5, 0, 0.6);
@@ -538,8 +693,11 @@ export const pirates: Theme<PirateScene> = {
       if (shipX < 0) shipX = 0;
     });
 
-    const boost = makeLights(group, ['#ffd3a1', 2.1], []);
-    group.add(new THREE.HemisphereLight('#a9c8ef', '#5a3c22', 0.6));
+    // cool moonlight from up-left, a dim blue sky fill; the lanterns supply the warmth
+    const boost = makeLights(group, ['#b8c8ff', 1.05], []);
+    const moonLight = new THREE.DirectionalLight('#9fb4ff', 0.8);
+    moonLight.position.copy(MOON);
+    group.add(moonLight, new THREE.HemisphereLight('#3a5680', '#2a1a10', 0.35));
 
     return {
       group,
@@ -562,7 +720,8 @@ export const pirates: Theme<PirateScene> = {
         // the ship rolls: the horizon and sea tilt a little, slowly
         sea.rotation.z = Math.sin(f.time * 0.45) * 0.022;
         sea.position.y = Math.sin(f.time * 0.6) * 0.28;
-        for (const l of lanterns.lights) l.intensity = 6 * (0.85 + Math.random() * 0.3);
+        for (const l of lanterns.lights) l.intensity = 12 * (0.85 + Math.random() * 0.3);
+        lighthouse.beam.rotation.y = f.time * 0.6;
 
         chestOpen = Math.max(0, chestOpen - f.dt);
         const target = chestOpen > 0 ? 1 : 0;

@@ -1,8 +1,9 @@
 import { $, download, el, pickFiles, timeAgo, toast, wireDialog } from './dom';
 import type { Session } from './session';
 import { exportWheel, importWheel, newWheel, shareLink, wheels, type WheelDoc } from '../library/wheels';
+import { listPresets, openPreset, type Preset } from '../library/presets';
 
-/** Title field + ⋯ menu: new, open, duplicate, export/import, share, delete. */
+/** Title field + ⋯ menu: new, open, duplicate, export/import, share, delete; and the Your wheels list. */
 export class WheelMenu {
   private menu = $('wheel-menu');
   private titleEl = $<HTMLInputElement>('wheel-title');
@@ -58,8 +59,7 @@ export class WheelMenu {
           break;
         }
         case 'open':
-          await session.save();
-          await this.showList();
+          await this.open();
           break;
         case 'duplicate': {
           await session.save();
@@ -99,6 +99,7 @@ export class WheelMenu {
           break;
         }
         case 'delete': {
+          if (session.doc.preset) return toast('Preset wheels can’t be deleted.');
           if (!confirm(`Delete “${session.doc.title}”? This can't be undone.`)) return;
           await wheels.remove(session.doc.id);
           const rest = await wheels.list();
@@ -115,32 +116,49 @@ export class WheelMenu {
     }
   }
 
-  private async showList() {
-    const list = $('wheel-list');
-    const all = await wheels.list();
-    list.replaceChildren(...all.map((w) => this.row(w)));
+  /** The Your wheels list: bundled presets first (pinned, never deletable), then the user's own wheels. */
+  async open() {
+    await this.session.save();
+    const [all, presets] = await Promise.all([wheels.list(), listPresets()]);
+    const presetFiles = new Set(presets.map((p) => p.file));
+    const rows = presets.map((p) => this.presetRow(p, all.find((w) => w.preset === p.file)));
+    // working copies show on their preset's row; a copy whose preset is gone is just a wheel now
+    rows.push(...all.filter((w) => !w.preset || !presetFiles.has(w.preset)).map((w) => this.row(w)));
+    $('wheel-list').replaceChildren(...rows);
     this.dialog.showModal();
+  }
+
+  /** A clickable row: thumbnail, title and a line of details. */
+  private rowButton(title: string, details: string, thumb: string | undefined, current: boolean, onOpen: () => Promise<void> | void) {
+    const pic = thumb ? el('img', { src: thumb, alt: '' }) : el('span', { className: 'thumb-empty' }, '🎡');
+    const open = el('button', { className: `wheel-row${current ? ' current' : ''}` }, pic, el('span', { className: 'meta' }, el('strong', {}, title), el('small', {}, details)));
+    open.addEventListener('click', async () => {
+      if (current) return this.dialog.close();
+      if (!this.canSwitch()) return toast('Wait for the wheel to stop first.');
+      this.dialog.close();
+      try {
+        await onOpen();
+      } catch (err) {
+        toast(err instanceof Error ? err.message : String(err), 'error');
+      }
+    });
+    return open;
+  }
+
+  private presetRow(p: Preset, copy: WheelDoc | undefined) {
+    const current = !!copy && copy.id === this.session.doc.id;
+    const details = copy ? `${copy.entries.length} names · ${timeAgo(copy.updatedAt)}${current ? ' · open' : ''}` : `${p.names} names`;
+    const open = this.rowButton(copy?.title ?? p.title, `📌 Preset · ${details}`, copy?.thumb, current, async () => {
+      await this.session.save();
+      this.session.open(await openPreset(p));
+    });
+    return el('li', { className: 'preset' }, open);
   }
 
   private row(w: WheelDoc) {
     const current = w.id === this.session.doc.id;
-    const thumb = w.thumb ? el('img', { src: w.thumb, alt: '' }) : el('span', { className: 'thumb-empty' }, '🎡');
+    const open = this.rowButton(w.title, `${w.entries.length} names · ${timeAgo(w.updatedAt)}${current ? ' · open' : ''}`, w.thumb, current, () => this.session.open(w));
     const del = el('button', { className: 'icon-btn', title: 'Delete', ariaLabel: `Delete ${w.title}` }, '🗑');
-    const open = el(
-      'button',
-      { className: `wheel-row${current ? ' current' : ''}` },
-      thumb,
-      el(
-        'span',
-        { className: 'meta' },
-        el('strong', {}, w.title),
-        el('small', {}, `${w.entries.length} names · ${timeAgo(w.updatedAt)}${current ? ' · open' : ''}`),
-      ),
-    );
-    open.addEventListener('click', () => {
-      this.dialog.close();
-      if (!current) this.session.open(w);
-    });
     del.addEventListener('click', async (e) => {
       e.stopPropagation();
       if (current) return toast('That wheel is open — use Delete in the menu.');

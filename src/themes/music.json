@@ -270,5 +270,73 @@
       {"file": "win-4.mp3", "seconds": 4, "prompt": "Short darbuka roll into a bold qanun glissando and final stab, festive win, instrumental only"},
       {"file": "win-5.mp3", "seconds": 4, "prompt": "Short shimmering harp and sistrum sparkle resolving to a warm major chord, ancient blessing, instrumental only"}
     ]
+  },
+  "sky": {
+    "spin": [
+      {"file": "spin-1.mp3", "seconds": 20, "prompt": "Soaring whimsical adventure at 120 BPM, bright glockenspiel and pizzicato strings, bouncy tuba, light snare, floating islands in the sky, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-2.mp3", "seconds": 20, "prompt": "Breezy indie-pop at 124 BPM, ukulele strums, hand claps, whistled melody, sunny carefree sky-high fun, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-3.mp3", "seconds": 20, "prompt": "Uplifting orchestral flight at 132 BPM, sweeping strings, heroic French horns, harp runs, timpani, wind beneath the wings, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-4.mp3", "seconds": 20, "prompt": "Airy synth-pop at 118 BPM, sparkling arpeggios, warm pads, light four-on-the-floor beat, cloud-hopping joy, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-5.mp3", "seconds": 20, "prompt": "Playful steampunk waltz at 140 BPM in 3/4, accordion and calliope, bouncy bass, airship carnival, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-6.mp3", "seconds": 20, "prompt": "Feel-good acoustic folk at 112 BPM, banjo and mandolin, foot-tap percussion, whistling, balloon ride over the hills, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"}
+    ],
+    "win": [
+      {"file": "win-1.mp3", "seconds": 4, "prompt": "Short bright fanfare of brass and glockenspiel rising to a sunny major chord with a cymbal swell, sky-high victory, instrumental only"},
+      {"file": "win-2.mp3", "seconds": 4, "prompt": "Short ukulele and whistle flourish ending on a cheerful chord with claps, instrumental only"},
+      {"file": "win-3.mp3", "seconds": 4, "prompt": "Short harp glissando into a soaring orchestral chord, triumph above the clouds, instrumental only"},
+      {"file": "win-4.mp3", "seconds": 4, "prompt": "Short sparkling synth arpeggio into a big bright chord, balloon pop celebration, instrumental only"},
+      {"file": "win-5.mp3", "seconds": 4, "prompt": "Short calliope and accordion win sting ending on a jaunty chord, airship carnival, instrumental only"}
+    ]
+  },
+  "lab": {
+    "spin": [
+      {"file": "spin-1.mp3", "seconds": 20, "prompt": "Mad-scientist electro-swing at 132 BPM, crackling vintage samples, walking upright bass, brassy stabs, theremin melody, mischievous experiment, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-2.mp3", "seconds": 20, "prompt": "Spooky-fun cartoon laboratory at 120 BPM, bubbling organ, pizzicato strings, bassoon and xylophone, zany inventions, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-3.mp3", "seconds": 20, "prompt": "Industrial electronic at 128 BPM, sparking synth bass, mechanical percussion, glitchy zaps, Tesla-coil energy, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-4.mp3", "seconds": 20, "prompt": "Gothic rock-orchestral at 140 BPM, pipe organ riff, driving drums, choir pads, thunderstorm creation scene, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-5.mp3", "seconds": 20, "prompt": "Retro sci-fi lounge at 110 BPM, theremin lead, bongos, vibraphone and walking bass, 1950s mad-lab cool, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-6.mp3", "seconds": 20, "prompt": "Frantic polka-punk at 160 BPM, accordion, tuba and fast drums, cartoon chaos as the potion boils over, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"}
+    ],
+    "win": [
+      {"file": "win-1.mp3", "seconds": 4, "prompt": "Short triumphant pipe-organ chord with a thunder-like timpani hit and a theremin swoop, IT'S ALIVE moment, instrumental only"},
+      {"file": "win-2.mp3", "seconds": 4, "prompt": "Short zany xylophone and slide-whistle flourish ending on a cartoon brass stab, experiment success, instrumental only"},
+      {"file": "win-3.mp3", "seconds": 4, "prompt": "Short electric synth zap sweeping up into a big bright chord, eureka, instrumental only"},
+      {"file": "win-4.mp3", "seconds": 4, "prompt": "Short bubbling organ glissando into a triumphant brass hit, potion perfected, instrumental only"},
+      {"file": "win-5.mp3", "seconds": 4, "prompt": "Short theremin and vibraphone sting resolving to a spooky-happy chord, instrumental only"}
+    ]
+  },
+  "pixel": {
+    "spin": [
+      {"file": "spin-1.mp3", "seconds": 20, "prompt": "Upbeat 8-bit chiptune at 150 BPM, square-wave lead melody, triangle bass, noise-channel drums, classic platformer adventure, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-2.mp3", "seconds": 20, "prompt": "Energetic 16-bit arcade at 140 BPM, bright FM synth lead, slap bass, punchy drums, retro racing high score chase, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-3.mp3", "seconds": 20, "prompt": "Bouncy chiptune-pop at 128 BPM, arpeggiated square waves, catchy hook, four-on-the-floor kick, coin-collecting fun, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-4.mp3", "seconds": 20, "prompt": "Fast retro arcade boss rush at 170 BPM, driving pulse-wave bass, rapid arpeggios, intense but playful, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-5.mp3", "seconds": 20, "prompt": "Cheerful 8-bit overworld theme at 120 BPM, bouncy triangle bass, pulse lead, simple snare, sunny voxel hills, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-6.mp3", "seconds": 20, "prompt": "Synth-chiptune fusion at 132 BPM, modern drums under vintage square waves, sidechained pads, neon arcade cabinet, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"}
+    ],
+    "win": [
+      {"file": "win-1.mp3", "seconds": 4, "prompt": "Short 8-bit level-clear jingle, rising square-wave arpeggio ending on a bright major chord, instrumental only"},
+      {"file": "win-2.mp3", "seconds": 4, "prompt": "Short chiptune high-score fanfare with a quick drum fill and a sparkly final note, instrumental only"},
+      {"file": "win-3.mp3", "seconds": 4, "prompt": "Short retro power-up sound melody, rapid ascending arpeggio into a triumphant chord, instrumental only"},
+      {"file": "win-4.mp3", "seconds": 4, "prompt": "Short 16-bit victory sting, FM brass and a cymbal crash on a major chord, instrumental only"},
+      {"file": "win-5.mp3", "seconds": 4, "prompt": "Short coin-collect chiptune flourish building into a happy final chord, instrumental only"}
+    ]
+  },
+  "pizza": {
+    "spin": [
+      {"file": "spin-1.mp3", "seconds": 20, "prompt": "Lively Italian tarantella at 150 BPM, accordion and mandolin racing, tambourine, upright bass, joyful pizzeria party, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-2.mp3", "seconds": 20, "prompt": "Swinging Italian-American lounge at 128 BPM, brassy horns, walking bass, finger snaps, cheesy crooner-style fun, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-3.mp3", "seconds": 20, "prompt": "Upbeat Neapolitan street band at 136 BPM, mandolin tremolo, acoustic guitar, clarinet melody, bouncy tuba, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-4.mp3", "seconds": 20, "prompt": "Funky kitchen groove at 112 BPM, slap bass, wah guitar, horn stabs, busy pizza shop rush, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-5.mp3", "seconds": 20, "prompt": "Cartoon chef comedy at 140 BPM, pizzicato strings, bassoon, accordion and xylophone, dough flying everywhere, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-6.mp3", "seconds": 20, "prompt": "Retro Italo-disco at 122 BPM, bright synth bass, four-on-the-floor, sparkly lead, Friday pizza night, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"}
+    ],
+    "win": [
+      {"file": "win-1.mp3", "seconds": 4, "prompt": "Short accordion and mandolin flourish ending on a big happy chord with a tambourine shake, bellissimo, instrumental only"},
+      {"file": "win-2.mp3", "seconds": 4, "prompt": "Short brassy Italian-American fanfare with a cymbal crash on a major chord, instrumental only"},
+      {"file": "win-3.mp3", "seconds": 4, "prompt": "Short tarantella run into a triumphant final chord, pizza party victory, instrumental only"},
+      {"file": "win-4.mp3", "seconds": 4, "prompt": "Short cartoon chef sting, xylophone and tuba ending on a cheerful honk and chord, instrumental only"},
+      {"file": "win-5.mp3", "seconds": 4, "prompt": "Short mandolin tremolo swelling into a warm major chord, chef's kiss, instrumental only"}
+    ]
   }
 }

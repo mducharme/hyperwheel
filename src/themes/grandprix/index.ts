@@ -11,16 +11,21 @@ import {
   length,
   max,
   mix,
+  dot,
+  normalView,
+  positionViewDirection,
   mx_fractal_noise_float,
   mx_noise_float,
   positionLocal,
   positionWorld,
+  pow,
   rangeFogFactor,
   screenSize,
   screenUV,
   sin,
   smoothstep,
   step,
+  texture,
   time,
   uniform,
   uv,
@@ -31,7 +36,7 @@ import {
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { Theme, ThemeScene } from '../types';
 import { makeLights, makeStand, rgb } from '../shared';
-import { lowRes } from '../../fx/nodes';
+import { lowRes, starField } from '../../fx/nodes';
 import { uSpeed, uWin } from '../../engine/globals';
 import { SCALES } from '../../audio/ChipSynth';
 import { meta, PALETTE } from './meta';
@@ -64,17 +69,89 @@ const trackDistance = (xz: N) => {
 // ------------------------------------------------------------------ world
 
 function sky() {
-  const horizon = (uvS: N) => smoothstep(0.05, 0.62, uvS.y); // screenUV.y grows downward
-  // soft drifting clouds: rendered at quarter resolution
+  const horizon = (uvS: N) => smoothstep(0.1, 0.6, uvS.y); // screenUV.y grows downward
+  // a night sky over a city: deep blue, an orange glow along the horizon, thin clouds lit from below
   const clouds = Fn(() => {
     const uvS = screenUV;
     const p = vec2(uvS.x.mul(screenSize.x.div(screenSize.y)), uvS.y);
-    const n = mx_fractal_noise_float(vec3(p.mul(vec2(1.6, 4)).add(vec2(time.mul(0.01), 0)), time.mul(0.004)), 4, 2, 0.5);
-    let col: N = mix(rgb('#1f6fd1'), rgb('#bfe3ff'), horizon(uvS));
-    col = mix(col, rgb('#ffffff'), smoothstep(0.05, 0.45, n).mul(float(1).sub(horizon(uvS).mul(0.6))).mul(0.85));
+    const n = mx_fractal_noise_float(vec3(p.mul(vec2(1.6, 4)).add(vec2(time.mul(0.008), 0)), time.mul(0.004)), 4, 2, 0.5);
+    let col: N = mix(rgb('#050816'), rgb('#1b2448'), horizon(uvS));
+    col = col.add(rgb('#ff8a3d').mul(smoothstep(0.45, 0.62, uvS.y).mul(0.35)));
+    col = mix(col, rgb('#3a3550'), smoothstep(0.1, 0.5, n).mul(horizon(uvS)).mul(0.6));
     return vec4(col, 1);
   });
-  return lowRes(clouds()).rgb;
+  return lowRes(clouds()).rgb.add(vec3(starField(0.997, 2.5, 1).mul(float(1).sub(horizon(screenUV)))));
+}
+
+/** A floodlight mast: a pole, a bank of lamps aimed at `target`, and a soft beam of light in the haze. */
+function makeFloodlight(at: THREE.Vector3, target: THREE.Vector3, uFlood: N) {
+  const g = new THREE.Group();
+  const steel = new THREE.MeshStandardNodeMaterial({ color: '#3a3f48', metalness: 0.7, roughness: 0.5 });
+  g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.38, at.y, 8).translate(at.x, at.y / 2, at.z), steel));
+  const head = new THREE.Group();
+  head.position.copy(at);
+  head.add(new THREE.Mesh(new THREE.BoxGeometry(3.6, 2, 0.3), steel));
+  const lamp = new THREE.MeshBasicNodeMaterial();
+  // a 6 × 3 grid of lamps, each a bright disc
+  const disc = smoothstep(0.42, 0.3, length(fract(uv().mul(vec2(6, 3))).sub(0.5)));
+  lamp.colorNode = mix(rgb('#1a1c22'), rgb('#fff6e0').mul(float(3.5).mul(uFlood)), disc);
+  const lamps = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 1.8), lamp);
+  lamps.position.z = 0.16;
+  head.add(lamps);
+  // the beam: an open cone with its tip at the lamps, opening toward the target and fading with distance
+  const len = at.distanceTo(target) * 0.95;
+  const beamMat = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false });
+  // cone uv.y is 1 at the tip; facing the camera it glows, edge-on it fades, so the silhouette stays soft
+  const facing = pow(abs(dot(normalView, positionViewDirection)), 1.5);
+  beamMat.colorNode = rgb('#fff1d6').mul(pow(uv().y, 2.4).mul(facing).mul(0.09).mul(uFlood));
+  // ConeGeometry has its tip up +Y: drop it so the tip is at the origin, then swing it to open along +Z (where lookAt faces)
+  const beamGeo = new THREE.ConeGeometry(3.6, len, 24, 1, true).translate(0, -len / 2, 0).rotateX(-Math.PI / 2);
+  head.add(new THREE.Mesh(beamGeo, beamMat));
+  head.lookAt(target);
+  g.add(head);
+  return g;
+}
+
+/** A fading ribbon of tail-light behind a car (positions sampled along its path). */
+class Trail {
+  readonly mesh: THREE.Mesh;
+  private pts: THREE.Vector3[] = [];
+  private pos: Float32Array;
+  constructor(
+    private n: number,
+    color: string,
+  ) {
+    this.pos = new Float32Array(n * 2 * 3);
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(this.pos, 3).setUsage(THREE.DynamicDrawUsage));
+    const fade = new Float32Array(n * 2 * 2);
+    for (let i = 0; i < n; i++) fade.set([i / (n - 1), 0, i / (n - 1), 1], i * 4);
+    geo.setAttribute('uv', new THREE.BufferAttribute(fade, 2));
+    const index: number[] = [];
+    for (let i = 0; i < n - 1; i++) index.push(i * 2, i * 2 + 1, i * 2 + 2, i * 2 + 1, i * 2 + 3, i * 2 + 2);
+    geo.setIndex(index);
+    const mat = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
+    const u = uv();
+    // bright at the car, fading out behind; soft top and bottom edges
+    mat.colorNode = rgb(color).mul(pow(float(1).sub(u.x), 1.6).mul(smoothstep(0, 0.5, u.y).mul(smoothstep(1, 0.5, u.y))).mul(2.6));
+    this.mesh = new THREE.Mesh(geo, mat);
+    this.mesh.frustumCulled = false;
+  }
+
+  push(p: THREE.Vector3) {
+    const head = this.pts[0];
+    // a new sample every 0.2 units; in between, the head just follows the car
+    if (head && this.pts.length > 1 && head.distanceToSquared(this.pts[1]) < 0.04) head.copy(p);
+    else {
+      this.pts.unshift(p.clone());
+      if (this.pts.length > this.n) this.pts.pop();
+    }
+    for (let i = 0; i < this.n; i++) {
+      const q = this.pts[Math.min(i, this.pts.length - 1)];
+      this.pos.set([q.x, 0.18, q.z, q.x, 0.62, q.z], i * 6);
+    }
+    this.mesh.geometry.attributes.position.needsUpdate = true;
+  }
 }
 
 function makeGround() {
@@ -85,7 +162,7 @@ function makeGround() {
   // mown grass
   const mow = step(0.5, fract(xz.x.mul(0.16).add(xz.y.mul(0.05))));
   const grassNoise = mx_noise_float(vec3(xz.mul(0.35), 0)).mul(0.06);
-  let col: N = mix(rgb('#3f8f3a'), rgb('#4fa547'), mow).add(grassNoise);
+  let col: N = mix(rgb('#1f4d22'), rgb('#275c29'), mow).add(grassNoise.mul(0.5));
   // asphalt with a little grain
   const grain = hash(floor(xz.mul(14)).dot(vec2(1, 57))).mul(0.05);
   const onTrack = float(1).sub(smoothstep(W - 0.03, W + 0.03, ad));
@@ -103,6 +180,8 @@ function makeGround() {
   const check = step(0.5, fract(floor(xz.x.mul(2.6)).add(floor(xz.y.mul(2.6))).mul(0.5)));
   col = mix(col, mix(rgb('#111111'), rgb('#f5f5f5'), check), onLine);
   mat.colorNode = col;
+  // damp asphalt catches the floodlights; the grass stays matte
+  mat.roughnessNode = mix(float(0.92), float(0.22).add(mx_noise_float(vec3(xz.mul(0.5), 3)).mul(0.15)), onTrack);
   const ground = new THREE.Mesh(new THREE.PlaneGeometry(200, 160), mat);
   ground.rotation.x = -Math.PI / 2;
   ground.position.z = -30;
@@ -183,16 +262,23 @@ function makeGrandstand(uCheer: N) {
   // a Mexican wave running along the stand
   const wave = smoothstep(0.85, 1, sin(positionWorld.x.mul(0.35).sub(time.mul(4))).mul(0.5).add(0.5)).mul(uCheer);
   crowd.colorNode = mix(seat, shirt, occupied).mul(float(1).add(wave.mul(0.8)));
+  // phone cameras flashing in the crowd, more of them while it cheers
+  const flash = step(float(0.996).sub(uCheer.mul(0.02)), hash(cell.dot(vec3(3, 11, 29)).add(floor(time.mul(6)))));
+  crowd.emissiveNode = vec3(flash.mul(occupied).mul(3)).add(rgb('#fff1d6').mul(wave.mul(0.4)));
   for (let i = 0; i < 5; i++) {
     const tier = new THREE.Mesh(new THREE.BoxGeometry(46, 0.9, 1.6), crowd);
     tier.position.set(0, 0.45 + i * 0.9, -i * 1.6);
     g.add(tier);
   }
-  const roofMat = new THREE.MeshStandardNodeMaterial({ color: '#e9ecf1', metalness: 0.3, roughness: 0.5 });
+  const roofMat = new THREE.MeshStandardNodeMaterial({ color: '#2a2e36', metalness: 0.3, roughness: 0.5 });
   const roof = new THREE.Mesh(new THREE.BoxGeometry(47, 0.25, 9), roofMat);
   roof.position.set(0, 6.6, -3.2);
   roof.rotation.x = -0.08;
   g.add(roof);
+  // a strip of lights under the roof's front edge
+  const strip = new THREE.Mesh(new THREE.BoxGeometry(46, 0.12, 0.12), new THREE.MeshBasicNodeMaterial({ color: new THREE.Color('#fff1d6').multiplyScalar(1.2) }));
+  strip.position.set(0, 6.55, 1.2);
+  g.add(strip);
   for (const x of [-22, -11, 0, 11, 22]) {
     const post = new THREE.Mesh(new THREE.BoxGeometry(0.3, 6.6, 0.3), roofMat);
     post.position.set(x, 3.3, -6.8);
@@ -217,7 +303,9 @@ function makeBoards() {
   ctx.fillText('HYPERWHEEL GP', 512, 100);
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
-  const mat = new THREE.MeshStandardNodeMaterial({ map: tex, roughness: 0.6 });
+  // LED boards: they glow on their own at night
+  const mat = new THREE.MeshBasicNodeMaterial();
+  mat.colorNode = texture(tex).rgb.mul(1.6);
   const g = new THREE.Group();
   for (const x of [-14, 0, 14]) {
     const b = new THREE.Mesh(new THREE.BoxGeometry(7, 1.3, 0.15), mat);
@@ -291,7 +379,7 @@ function makeTrees() {
   spots.forEach(([x, z, s], i) => {
     m.compose(new THREE.Vector3(x, 1.4 * s + s * 0.6, z), new THREE.Quaternion(), new THREE.Vector3(s, s * 1.15, s));
     canopy.setMatrixAt(i, m);
-    canopy.setColorAt(i, c.set(i % 3 ? '#2f7a34' : '#3d8f3c'));
+    canopy.setColorAt(i, c.set(i % 3 ? '#16331c' : '#1d4024'));
     m.compose(new THREE.Vector3(x, 0, z), new THREE.Quaternion(), new THREE.Vector3(s, s, s));
     trunk.setMatrixAt(i, m);
   });
@@ -326,8 +414,8 @@ export const grandprix: Theme<RaceScene> = {
     frame: '#121214',
     tire: { text: 'HYPERWHEEL  •  GRAND PRIX', color: '#ffd400' },
   },
-  // daylight: keep bloom for the lamps and sparkles only, so the bright sky doesn't haze everything
-  post: { bloom: [0.18, 0.3, 0.97], exposure: 0.86, aberration: 0.6, vignette: 0.4 },
+  // night race: the floodlights, tail-lights and LED boards carry the bloom
+  post: { bloom: [0.55, 0.4, 0.78], exposure: 1, aberration: 0.7, vignette: 0.55 },
   character: { spot: [0, 0.22, 1.6], entrance: 'rise' },
   tick: 'click',
   song: {
@@ -350,12 +438,16 @@ export const grandprix: Theme<RaceScene> = {
   createScene({ scene, center }) {
     const group = new THREE.Group();
     scene.backgroundNode = sky();
-    scene.fogNode = fog(rgb('#cfe7ff'), rangeFogFactor(45, 120));
-    scene.environmentIntensity = 0.35;
+    scene.fogNode = fog(rgb('#0d1226'), rangeFogFactor(40, 120));
+    scene.environmentIntensity = 0.18;
 
     const uLit = uniform(0); // start lights showing (0..5)
     const uWave = uniform(0);
     const uCheer = uniform(0);
+    const uFlood = uniform(1);
+    // floodlights on four masts around the circuit, all aimed into the oval
+    const MASTS = [new THREE.Vector3(-27, 15, -6), new THREE.Vector3(27, 15, -6), new THREE.Vector3(-15, 17, -25), new THREE.Vector3(15, 17, -25)];
+    for (const at of MASTS) group.add(makeFloodlight(at, new THREE.Vector3(at.x * 0.35, 0, ZC + 2), uFlood));
 
     group.add(makeGround(), makeGantry(uLit), makeGrandstand(uCheer), makeBoards(), makeTyreStacks(), makeTrees());
     for (const [x, phase] of [
@@ -384,11 +476,14 @@ export const grandprix: Theme<RaceScene> = {
     const cars = LIVERIES.map((livery, i) => {
       const car = makeCar(livery);
       group.add(car);
-      return { car, s: (i / LIVERIES.length) * Math.PI * 2 + rand(-0.15, 0.15), lane: rand(-0.7, 0.7), pace: rand(0.92, 1.08), boost: 1, boostLeft: 0 };
+      const trail = new Trail(26, '#ff2a1f');
+      group.add(trail.mesh);
+      return { car, trail, s: (i / LIVERIES.length) * Math.PI * 2 + rand(-0.15, 0.15), lane: rand(-0.7, 0.7), pace: rand(0.92, 1.08), boost: 1, boostLeft: 0 };
     });
     let fieldBoost = 1;
     let fieldBoostLeft = 0;
     const tangent = new THREE.Vector2();
+    const tail = new THREE.Vector3();
     const placeCars = (dt: number, speed: number) => {
       fieldBoostLeft = Math.max(0, fieldBoostLeft - dt);
       if (!fieldBoostLeft) fieldBoost += (1 - fieldBoost) * (1 - Math.exp(-dt * 1.5));
@@ -403,6 +498,10 @@ export const grandprix: Theme<RaceScene> = {
         const z = ZC + B * Math.sin(c.s) - n.x * c.lane;
         c.car.position.set(x, 0, z);
         c.car.rotation.y = Math.atan2(-n.y, n.x);
+        // the trail starts at the rear wing
+        const tl = tangent.length();
+        tail.set(x - (tangent.x / tl) * 1.1, 0, z - (tangent.y / tl) * 1.1);
+        c.trail.push(tail);
       }
     };
     placeCars(0, 0);
@@ -444,8 +543,13 @@ export const grandprix: Theme<RaceScene> = {
     });
     moments.add(() => (waveLeft = 2.5));
 
-    const boostLights = makeLights(group, ['#fff4dc', 1.6], []);
-    group.add(new THREE.HemisphereLight('#cfe7ff', '#4b8a3e', 0.55));
+    // a cool TV-lighting key on the stage, warm floodlight pools on the track
+    const boostLights = makeLights(
+      group,
+      ['#dfe8ff', 0.9],
+      MASTS.map((m): [string, number, THREE.Vector3Tuple] => ['#fff1d6', 160, [m.x * 0.6, 9, m.z * 0.6 + ZC * 0.4]]),
+    );
+    group.add(new THREE.HemisphereLight('#3a4a80', '#10180f', 0.35));
 
     return {
       group,

@@ -40,7 +40,8 @@ import { celebrations } from './celebrations';
 
 type N = any;
 
-const MIST = '#cdd6b6';
+const MIST = '#b9877a';
+const VOLCANO = new THREE.Vector3(26, 0, -120);
 const PUDDLE = new THREE.Vector3(4.7, 0.02, 2.3);
 const WATERFALL = new THREE.Vector3(-17, 0, -30);
 
@@ -50,10 +51,12 @@ function sky() {
   const haze = Fn(() => {
     const uvS = screenUV; // y grows downward
     const p = vec2(uvS.x.mul(screenSize.x.div(screenSize.y)), uvS.y);
-    let col: N = mix(rgb('#8fb8c9'), rgb('#e8e3c4'), smoothstep(0.05, 0.6, uvS.y));
-    col = mix(col, rgb('#f6dfa6'), smoothstep(0.45, 0.68, uvS.y).mul(0.6)); // dawn glow low down
+    // prehistoric dusk: violet overhead, rose and ember orange toward the horizon
+    let col: N = mix(rgb('#2a2350'), rgb('#b0506a'), smoothstep(0.02, 0.4, uvS.y));
+    col = mix(col, rgb('#ff8a45'), smoothstep(0.35, 0.62, uvS.y));
     const n = mx_fractal_noise_float(vec3(p.mul(vec2(1.2, 3.5)).add(vec2(time.mul(0.005), 0)), 0), 3, 2, 0.5);
-    col = mix(col, rgb('#f7f3e4'), smoothstep(0.0, 0.5, n).mul(0.45));
+    // long clouds, dark on top and lit orange underneath
+    col = mix(col, mix(rgb('#3a2a4a'), rgb('#ff9a6a'), smoothstep(0.1, 0.45, uvS.y)), smoothstep(0.05, 0.5, n).mul(0.5));
     return vec4(col, 1);
   });
   return lowRes(haze()).rgb;
@@ -63,7 +66,7 @@ function makeGround() {
   const m = new THREE.MeshStandardNodeMaterial({ roughness: 0.95 });
   const xz = positionWorld.xz;
   const n = mx_fractal_noise_float(vec3(xz.mul(0.18), 0), 2, 2, 0.5).mul(0.5).add(0.5);
-  const moss = mix(rgb('#4f7a2c'), rgb('#7aa33d'), n);
+  const moss = mix(rgb('#3a5a24'), rgb('#5a7e30'), n);
   // bare earth around the stage and along a trampled path
   const bare = smoothstep(4.5, 2.8, length(xz.sub(vec2(0, -0.6)))).max(smoothstep(1.6, 0.6, xz.x.add(xz.y.mul(0.25)).add(mx_noise_float(vec3(xz.mul(0.3), 1)).mul(1.2)).abs()).mul(smoothstep(-2, -14, xz.y)));
   m.colorNode = mix(moss, rgb('#7b6545'), bare.mul(0.85));
@@ -91,6 +94,32 @@ function makeMist() {
     g.add(plane);
   }
   return g;
+}
+
+/** A volcano on the horizon: a dark cone, lava glowing in the crater and in channels down its flanks. */
+function makeVolcano(uErupt: N) {
+  // out of the fog: a dark silhouette against the dusk, so the lava reads
+  const m = new THREE.MeshStandardNodeMaterial({ roughness: 1, flatShading: true, fog: false });
+  const pl = positionLocal;
+  const h = pl.y.div(32); // 0 at the foot, 1 at the rim
+  const around = pl.x.atan(pl.z);
+  // a few lava channels wandering down from the rim
+  const channel = smoothstep(0.93, 0.99, sin(around.mul(5).add(mx_noise_float(vec3(pl.mul(0.08))).mul(2.5))).mul(0.5).add(0.5)).mul(smoothstep(0.15, 0.95, h));
+  const crater = smoothstep(0.88, 1, h);
+  const glow = channel.max(crater).mul(float(1).add(sin(time.mul(1.3).sub(h.mul(6))).mul(0.25)).add(uErupt.mul(2)));
+  m.colorNode = mix(rgb('#2a1c2a'), rgb('#4a2e3a'), mx_noise_float(pl.mul(0.15)).mul(0.5).add(0.5)).mul(0.6);
+  m.emissiveNode = mix(rgb('#ff3a0a'), rgb('#ffb347'), crater).mul(glow.mul(3));
+  const cone = new THREE.Mesh(new THREE.CylinderGeometry(5, 34, 32, 28, 6, true), m);
+  const p = cone.geometry.attributes.position;
+  for (let i = 0; i < p.count; i++) {
+    const k = 1 + Math.sin(i * 1.7) * 0.05;
+    p.setX(i, p.getX(i) * k);
+    p.setZ(i, p.getZ(i) * k);
+  }
+  cone.geometry.translate(0, 16, 0);
+  cone.geometry.computeVertexNormals();
+  cone.position.copy(VOLCANO);
+  return cone;
 }
 
 // ------------------------------------------------------------------ plants
@@ -369,7 +398,7 @@ export const dino: Theme<DinoScene> = {
     pegs: '#e8dcc0',
     frame: '#2e2a22',
   },
-  post: { bloom: [0.22, 0.4, 0.93], exposure: 0.95, aberration: 0.7, vignette: 0.5 },
+  post: { bloom: [0.4, 0.45, 0.84], exposure: 0.95, aberration: 0.7, vignette: 0.55 },
   character: { spot: [0, 0.22, 1.6], entrance: 'pop' },
   tick: 'pop',
   song: {
@@ -392,8 +421,8 @@ export const dino: Theme<DinoScene> = {
   createScene({ scene, center }) {
     const group = new THREE.Group();
     scene.backgroundNode = sky();
-    scene.fogNode = fog(rgb(MIST), rangeFogFactor(28, 110));
-    scene.environmentIntensity = 0.4;
+    scene.fogNode = fog(rgb(MIST), rangeFogFactor(30, 150));
+    scene.environmentIntensity = 0.25;
 
     const uTremble = uniform(0);
     const uRip = uniform(-1);
@@ -405,6 +434,8 @@ export const dino: Theme<DinoScene> = {
       [6, -22, 4.5],
     ];
 
+    const uErupt = uniform(0);
+    group.add(makeVolcano(uErupt));
     group.add(makeGround(), makeMist(), makeConifers(), makeWaterfall(), makeTreeFerns(trunks), makeFerns(uTremble, trunks), makePuddle(uRip));
     const nest = makeNest();
     group.add(nest.group);
@@ -444,6 +475,63 @@ export const dino: Theme<DinoScene> = {
     });
     group.add(spray.object);
 
+    // smoke rolling up from the crater, lit from below, with embers in it
+    const smoke = new Particles({
+      count: 40,
+      atlas: sprites,
+      cells: [4],
+      loop: true,
+      mode: 'face',
+      tint: 1,
+      intensity: 0.7,
+      colors: ['#4a3a44', '#6a4a4a'],
+      mirror: false,
+      fog: false,
+      emitters: [{ at: [VOLCANO.x, 33, VOLCANO.z], box: [3, 0.5, 3], dir: [-0.25, 1, 0], spread: 0.25, speed: [2, 3.5] }],
+      size: [8, 16],
+      gravity: [-0.6, 0.4, 0],
+      drag: 0.3,
+      life: [7, 10],
+      wobble: 0.3,
+    });
+    const embers = new Particles({
+      count: 50,
+      atlas: sprites,
+      cells: [4],
+      loop: true,
+      mode: 'face',
+      blend: 'additive',
+      intensity: 3,
+      colors: ['#ffb347', '#ff5a1a'],
+      mirror: false,
+      fog: false,
+      emitters: [{ at: [VOLCANO.x, 32, VOLCANO.z], box: [2, 0.5, 2], dir: [0, 1, 0], spread: 0.6, speed: [3, 7] }],
+      size: [0.35, 0.7],
+      gravity: [0, -3, 0],
+      drag: 0.2,
+      life: [2, 3.5],
+    });
+    // fireflies drifting among the ferns
+    const fireflies = new Particles({
+      count: 40,
+      atlas: sprites,
+      cells: [4],
+      loop: true,
+      mode: 'face',
+      blend: 'additive',
+      intensity: 2.5,
+      colors: ['#d8ff7a', '#fff1a0'],
+      mirror: false,
+      emitters: [{ at: [0, 1.6, -6], box: [14, 1.4, 8], dir: [0, 1, 0], spread: 1.5, speed: [0.1, 0.3] }],
+      size: [0.08, 0.14],
+      gravity: [0, 0.02, 0],
+      drag: 0.5,
+      life: [3, 6],
+      wobble: 1.2,
+    });
+    group.add(smoke.object, embers.object, fireflies.object);
+    let eruptLeft = 0;
+
     // stone-and-bone stand
     const bone = new THREE.MeshStandardNodeMaterial({ color: '#e8dcc0', roughness: 0.6 });
     const stone = new THREE.MeshStandardNodeMaterial({ roughness: 0.9 });
@@ -473,9 +561,13 @@ export const dino: Theme<DinoScene> = {
     moments.add(() => pteros.fire());
     moments.add(() => stomp(3));
     moments.add(() => dragonfly.fire());
+    moments.add(() => (eruptLeft = 2.5));
 
-    const lights = makeLights(group, ['#ffe2b0', 1.7], []);
-    group.add(new THREE.HemisphereLight('#d6e6d8', '#4a5a2a', 0.75));
+    // low warm dusk light, a violet sky fill
+    const lights = makeLights(group, ['#ffb07a', 1.45], []);
+    const sunLow = new THREE.DirectionalLight('#ff7a4a', 1.2);
+    sunLow.position.set(-60, 8, -80);
+    group.add(sunLow, new THREE.HemisphereLight('#8a6aa8', '#2a3a1a', 0.45));
 
     return {
       group,
@@ -492,6 +584,11 @@ export const dino: Theme<DinoScene> = {
         lights(f.speed, f.win);
         moments.update(f);
         spray.update(f.time);
+        smoke.update(f.time);
+        embers.update(f.time);
+        fireflies.update(f.time);
+        eruptLeft = Math.max(0, eruptLeft - f.dt);
+        uErupt.value += ((eruptLeft > 0 ? 1 : 0) - uErupt.value) * (1 - Math.exp(-f.dt * (eruptLeft > 0 ? 4 : 1)));
         walkClock += f.dt;
 
         // the herd ambles on, wrapping around the valley

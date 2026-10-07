@@ -46,6 +46,9 @@ import { celebrations } from './celebrations';
 type N = any;
 
 const NIGHT = '#141633';
+const MOON = new THREE.Vector3(-40, 42, -140);
+/** Two more fire bowls further back, lighting the colonnade and the obelisk. */
+const TORCHES = [new THREE.Vector3(-8.6, 0, -8.5), new THREE.Vector3(8.8, 0, -9.5)];
 
 // ------------------------------------------------------------------ sky, moon, dunes
 
@@ -74,7 +77,7 @@ function makeMoon() {
   mat.colorNode = rgb('#fff4d6').mul(disc.sub(bite).max(0).mul(1.6)).add(rgb('#8fa6ff').mul(halo));
   mat.opacityNode = max(disc.sub(bite), halo.mul(2));
   const moon = new THREE.Mesh(new THREE.PlaneGeometry(14, 14), mat);
-  moon.position.set(-40, 42, -140);
+  moon.position.copy(MOON);
   return moon;
 }
 
@@ -91,7 +94,7 @@ function makeDunes() {
   mat.positionNode = positionLocal.add(vec3(0, 0, h));
   const ripples = sin(wx.mul(2.2).add(mx_noise_float(vec3(wx.mul(0.2), wz.mul(0.2), 0)).mul(4))).mul(0.5).add(0.5);
   // moonlit sand: cool and silvery, the crests catching the light
-  mat.colorNode = mix(rgb('#4a4c66'), rgb('#a89c8e'), smoothstep(-0.5, 3, h)).mul(ripples.mul(0.08).add(0.92));
+  mat.colorNode = mix(rgb('#262a4a'), rgb('#9a8f94'), smoothstep(-0.5, 3, h)).mul(ripples.mul(0.12).add(0.88));
   const ground = new THREE.Mesh(geo, mat);
   ground.rotation.x = -Math.PI / 2;
   ground.position.z = -60;
@@ -117,7 +120,7 @@ function glyphs(coord: N, uGlyph: N, uWave: N) {
   const ankh = smoothstep(0.04, 0.02, abs(length(f.sub(vec2(0, 0.18))).sub(0.1))).max(vbar.mul(step(f.y, 0.1))).max(hbar.mul(smoothstep(0.08, 0.04, abs(f.y))));
   const mark = vbar.mul(pick(0, 0.25)).max(hbar.mul(pick(0.25, 0.45))).max(ring.mul(pick(0.45, 0.65))).max(eye.mul(pick(0.65, 0.82))).max(ankh.mul(pick(0.82, 0.97)));
   const wave = exp(c.y.mul(0.08).add(c.x.mul(0.02)).sub(uWave.mul(6)).pow(2).mul(-3)).mul(step(0.001, uWave));
-  return { mark, glow: mark.mul(float(0.35).add(uGlyph.mul(2.5)).add(wave.mul(2.5)).add(uWin.mul(0.8))) };
+  return { mark, glow: mark.mul(float(0.6).add(uGlyph.mul(2.5)).add(wave.mul(2.5)).add(uWin.mul(0.8))) };
 }
 
 function stoneMat(uGlyph: N, uWave: N, coord: N) {
@@ -165,7 +168,7 @@ function makePyramids() {
   const g = new THREE.Group();
   const mat = new THREE.MeshStandardNodeMaterial({ roughness: 1, flatShading: true });
   // courses of stone blocks, catching the moonlight
-  mat.colorNode = rgb('#b59a73').mul(float(0.85).add(step(0.85, fract(positionWorld.y.mul(0.7))).mul(-0.12)));
+  mat.colorNode = rgb('#c9a878').mul(float(0.85).add(step(0.85, fract(positionWorld.y.mul(0.7))).mul(-0.18)));
   const capMat = new THREE.MeshStandardNodeMaterial({ color: '#e0b04a', metalness: 0.7, roughness: 0.3 });
   capMat.emissiveNode = rgb('#ffcf6b').mul(sin(time.mul(0.8)).mul(0.2).add(0.6));
   for (const [x, z, s] of [
@@ -286,11 +289,11 @@ export const pharaoh: Theme<PharaohScene> = {
     const uBeam = uniform(0);
     const uStorm = uniform(0);
     scene.backgroundNode = sky();
-    scene.fogNode = fog(mix(rgb(NIGHT), rgb('#b8946a'), uStorm), rangeFogFactor(mix(float(40), float(5), uStorm), mix(float(170), float(28), uStorm)));
+    scene.fogNode = fog(mix(rgb(NIGHT), rgb('#b8946a'), uStorm), rangeFogFactor(mix(float(60), float(5), uStorm), mix(float(240), float(28), uStorm)));
     scene.environmentIntensity = 0.25;
 
     group.add(makeMoon(), makeDunes(), makePyramids(), makeSphinx(), makeColonnade(uGlyph, uWave), makeObelisk(uGlyph, uWave), makeBeam(uBeam));
-    for (const b of BRAZIERS) group.add(makeBrazier(b));
+    for (const b of [...BRAZIERS, ...TORCHES]) group.add(makeBrazier(b));
 
     // sandstone stand
     const sandstone = new THREE.MeshStandardNodeMaterial({ color: '#c9b28a', roughness: 0.9 });
@@ -309,7 +312,7 @@ export const pharaoh: Theme<PharaohScene> = {
       intensity: 1.1,
       colors: ['#ff8a2a', '#ff5a1a', '#ffb347'],
       mirror: false,
-      emitters: BRAZIERS.map((b) => ({ at: [b.x, 1.95, b.z] as [number, number, number], box: [0.3, 0.05, 0.3] as [number, number, number], dir: [0, 1, 0] as [number, number, number], spread: 0.25, speed: [0.8, 1.6] as [number, number] })),
+      emitters: [...BRAZIERS, ...TORCHES].map((b) => ({ at: [b.x, 1.95, b.z] as [number, number, number], box: [0.3, 0.05, 0.3] as [number, number, number], dir: [0, 1, 0] as [number, number, number], spread: 0.25, speed: [0.8, 1.6] as [number, number] })),
       size: [0.22, 0.45],
       gravity: [0, 1.2, 0],
       drag: 0.8,
@@ -326,7 +329,7 @@ export const pharaoh: Theme<PharaohScene> = {
       intensity: 3,
       colors: ['#ffb347'],
       mirror: false,
-      emitters: BRAZIERS.map((b) => ({ at: [b.x, 2.1, b.z] as [number, number, number], box: [0.2, 0.05, 0.2] as [number, number, number], dir: [0, 1, 0] as [number, number, number], spread: 0.4, speed: [1, 2.5] as [number, number] })),
+      emitters: [...BRAZIERS, ...TORCHES].map((b) => ({ at: [b.x, 2.1, b.z] as [number, number, number], box: [0.2, 0.05, 0.2] as [number, number, number], dir: [0, 1, 0] as [number, number, number], spread: 0.4, speed: [1, 2.5] as [number, number] })),
       size: [0.04, 0.07],
       gravity: [0, 0.6, 0],
       drag: 0.6,
@@ -351,11 +354,13 @@ export const pharaoh: Theme<PharaohScene> = {
     moments.add(() => (waveT = 0));
     moments.add(() => (flare = 1));
 
-    const lights = makeLights(group, ['#9fb4ff', 0.75], [
-      ['#ff9a3d', 5, [BRAZIERS[0].x, 2.6, BRAZIERS[0].z]],
-      ['#ff9a3d', 5, [BRAZIERS[1].x, 2.6, BRAZIERS[1].z]],
+    // fire up close, cool moonlight raking across the monuments from the moon's side
+    const lights = makeLights(group, ['#9fb4ff', 0.7], [
+      ...[...BRAZIERS, ...TORCHES].map((b, i): [string, number, THREE.Vector3Tuple] => ['#ff9a3d', i < 2 ? 14 : 12, [b.x, 2.6, b.z + 0.4]]),
     ]);
-    group.add(new THREE.HemisphereLight('#3a4a8a', '#5a4a3a', 0.55));
+    const moonLight = new THREE.DirectionalLight('#a8baff', 1.5);
+    moonLight.position.copy(MOON);
+    group.add(moonLight, new THREE.HemisphereLight('#3a4a8a', '#3a2a2a', 0.4));
 
     return {
       group,

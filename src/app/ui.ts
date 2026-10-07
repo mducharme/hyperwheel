@@ -2,7 +2,7 @@ import { debug } from '../debug';
 import type { QualityLevel, QualityPref } from '../engine/quality';
 import type { App } from './App';
 import { parseNames, persist, store } from './store';
-import { $, el, wireDialog } from './dom';
+import { $, el, toast, wireDialog } from './dom';
 import { Session } from './session';
 import { WheelMenu } from './wheelMenu';
 import { EntriesView } from './entriesView';
@@ -24,6 +24,8 @@ export class UI {
   private opening: Promise<void> = Promise.resolve();
   /** Scene chosen at spin start for the auto-switch after this result. */
   private upcoming: ThemeEntry | null = null;
+
+  private wheelMenu = new WheelMenu(this.session, () => !this.app.spin.spinning && this.winnerEl.hidden === true);
 
   constructor(private app: App) {}
 
@@ -60,7 +62,7 @@ export class UI {
     this.initWheelSettings();
     this.initScenes();
     this.initWinner();
-    new WheelMenu(this.session, () => !this.app.spin.spinning && this.winnerEl.hidden === true).init();
+    this.wheelMenu.init();
     new EntriesView(this.app, this.session).init();
 
     window.addEventListener('keydown', (e) => {
@@ -366,7 +368,8 @@ export class UI {
         i.style.background = c;
         return i;
       }));
-      const card = el('button', { className: 'scene-card' }, swatch, el('strong', {}, `${t.emoji} ${t.name}`), el('small', {}, t.tagline));
+      // icon, name and palette; the tagline is a hover tooltip (phones just go without)
+      const card = el('button', { className: 'scene-card', title: t.tagline }, swatch, el('strong', {}, `${t.emoji} ${t.name}`));
       card.dataset.id = t.id;
       card.addEventListener('click', () => {
         gallery.close();
@@ -377,18 +380,21 @@ export class UI {
     this.renderDock();
   }
 
-  /** The dock: the current scene, and a button for the gallery of all scenes. */
+  /** The dock: the current scene (opens the scene gallery) and Your wheels. */
   private renderDock() {
-    const open = () => $<HTMLDialogElement>('scene-gallery').showModal();
     const nodes: HTMLElement[] = [];
     if (this.current) {
       const b = el('button', { className: 'active', title: `${this.current.name} — all scenes` }, this.current.emoji);
-      b.addEventListener('click', open);
+      b.dataset.id = this.current.id; // keeps it highlighted when markTheme syncs the active state
+      b.addEventListener('click', () => $<HTMLDialogElement>('scene-gallery').showModal());
       nodes.push(b);
     }
-    const more = el('button', { className: 'more', title: 'All scenes' }, '⋯');
-    more.addEventListener('click', open);
-    nodes.push(more);
+    const mine = el('button', { className: 'wheels', title: 'Your wheels' }, '🎡');
+    mine.addEventListener('click', () => {
+      if (this.app.spin.spinning) return toast('Wait for the wheel to stop first.');
+      void this.wheelMenu.open();
+    });
+    nodes.push(mine);
     $('scenes').replaceChildren(...nodes);
   }
 
