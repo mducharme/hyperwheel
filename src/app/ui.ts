@@ -147,8 +147,8 @@ export class UI {
     if (!info) this.winnerEl.classList.remove('with-character');
   }
 
-  onFps(fps: number) {
-    $('fps').textContent = `${fps} fps`;
+  onFps(fps: number | null) {
+    $('fps').textContent = fps === null ? 'idle' : `${fps} fps`;
   }
 
   setBackend(isWebGPU: boolean) {

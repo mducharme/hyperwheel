@@ -18,6 +18,9 @@ import { Showcase } from '../characters/Showcase';
 import { defaultCharacterFor, isKnownCharacter } from '../characters/catalog';
 import type { Entry } from '../library/wheels';
 
+/** Frame rate while nothing is happening. */
+const IDLE_FPS = 30;
+
 export const WHEEL_CENTER = new THREE.Vector3(0, 3.9, 0);
 const DEFAULT_CAMERA = { height: 0.9, look: 0.15, frame: 8.6 };
 
@@ -36,7 +39,8 @@ export interface AppEvents {
   onResult(name: string, index: number, celebration: string): void;
   /** The winner's character finished loading and is on stage (or failed: null). */
   onCharacter?(info: { name: string; description: string } | null): void;
-  onFps(fps: number): void;
+  /** Measured frame rate, or null while idle (throttled on purpose). */
+  onFps(fps: number | null): void;
   /** The first frame has been drawn. */
   onFirstFrame?(): void;
 }
@@ -84,6 +88,9 @@ export class App {
   private winAt = -1;
   private fps = { acc: 0, frames: 0 };
   private firstFrame = false;
+  /** Full frame rate until this time (elapsed seconds); idle scenes drop to IDLE_FPS. */
+  private activeUntil = 0;
+  private lastRender = 0;
 
   constructor(
     private canvas: HTMLCanvasElement,
@@ -155,13 +162,25 @@ export class App {
     });
     this.canvas.addEventListener('pointermove', (e) => {
       this.cam.pointer.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
+      this.wake(1);
     });
+    // any interaction restores the full frame rate at once
+    for (const type of ['pointerdown', 'keydown', 'wheel'] as const) window.addEventListener(type, () => this.wake(2), { passive: true });
     window.addEventListener('resize', () => this.stage.resize(innerWidth, innerHeight));
     this.stage.resize(innerWidth, innerHeight);
   }
 
   start() {
     this.stage.renderer.setAnimationLoop(() => this.frame());
+  }
+
+  /** Run at full frame rate for at least `seconds` (spins, celebrations and input call this). */
+  wake(seconds: number) {
+    this.activeUntil = Math.max(this.activeUntil, this.elapsed + seconds);
+  }
+
+  private get idle() {
+    return !this.spin.spinning && !this.drag?.dragging && !this.pendingSwap && this.coverFrames < 0 && this.elapsed >= this.activeUntil;
   }
 
   get canSpin() {
@@ -331,6 +350,7 @@ export class App {
     performance.mark('hw:theme-built');
 
     if (!first) this.stage.triggerRipple(WHEEL_CENTER, 1.2, 1.2);
+    this.wake(2); // crossfade + ripple
   }
 
   /** Play a specific celebration by index (or a random one). Returns its name. */
@@ -343,6 +363,7 @@ export class App {
     this.lastCelebration = i;
     const c = this.celebrations[i];
     c.play();
+    this.wake(7);
     return c.name;
   }
 
@@ -376,6 +397,7 @@ export class App {
     this.events.onResult(entry.name, index, celebration);
     if (this.charactersEnabled) {
       void this.showcase.present(this.characterFor(entry), entry.name).then((ok) => {
+        if (ok) this.wake(8); // entrance + first dance at full rate
         this.events.onCharacter?.(ok ? this.showcase.current : null);
       });
     }
@@ -385,6 +407,11 @@ export class App {
 
   private frame() {
     const now = performance.now();
+    // Idle (nothing spinning, celebrating or being touched): skip display frames down to
+    // ~30 fps to save GPU time and battery. The small slack keeps 60 Hz screens at every
+    // second frame and 120 Hz at every fourth instead of jittering.
+    if (this.firstFrame && this.idle && now - this.lastRender < 1000 / IDLE_FPS - 4) return;
+    this.lastRender = now;
     const dt = Math.min(0.05, (now - this.last) / 1000);
     this.last = now;
     this.elapsed += dt;
@@ -426,7 +453,7 @@ export class App {
     this.fps.acc += dt;
     this.fps.frames++;
     if (this.fps.acc > 0.5) {
-      this.events.onFps(Math.round(this.fps.frames / this.fps.acc));
+      this.events.onFps(this.idle ? null : Math.round(this.fps.frames / this.fps.acc));
       this.fps.acc = 0;
       this.fps.frames = 0;
     }
