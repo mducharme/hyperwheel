@@ -1,5 +1,5 @@
 import { defineConfig, loadEnv } from 'vite';
-import { presetWheels } from './scripts/presetWheels';
+import { presetWheels } from './scripts/presetWheels.ts';
 
 export default defineConfig(({ mode }) => {
   // not VITE_-prefixed: the URL is only used while building, never shipped to the browser

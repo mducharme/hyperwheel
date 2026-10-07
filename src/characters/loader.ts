@@ -32,6 +32,10 @@ export interface CharacterInstance {
 
 /** Animations worth celebrating with, by name. */
 export const CELEBRATORY = /danc|salsa|flair|twerk|samba|hip.?hop|celebrat|victor|cheer|win|step|emote.?yes|wave|jump|clap|happy|fist|party|groove/i;
+/** Clips that match a celebration keyword but don't play well as one (e.g. "jump-attack" matches "jump"). */
+export const NOT_CELEBRATORY = /jump.?attack/i;
+/** Whether a clip, by its name, is a celebration. */
+export const isCelebration = (name: string) => CELEBRATORY.test(name) && !NOT_CELEBRATORY.test(name);
 
 // DRACOLoader's default decoder paths point at three's own copy, which Vite emits as assets
 const draco = new DRACOLoader();
@@ -88,7 +92,7 @@ const danceLibrary = new Map<string, THREE.AnimationClip>();
 function register(t: CharacterTemplate) {
   if (t.family !== 'mixamo') return;
   for (const clip of t.clips) {
-    if (!CELEBRATORY.test(clip.name)) continue;
+    if (!isCelebration(clip.name)) continue;
     const key = `${t.id}:${clip.name}`;
     if (danceLibrary.has(key)) continue;
     const portable = clip.clone();
@@ -195,6 +199,6 @@ export async function instantiate(id: string): Promise<CharacterInstance> {
 /** Validate an uploaded file by actually loading it. Returns a short report. */
 export async function inspect(id: string) {
   const t = await loadTemplateCached(id);
-  const dances = t.clips.filter((c) => CELEBRATORY.test(c.name)).map((c) => c.name);
+  const dances = t.clips.filter((c) => isCelebration(c.name)).map((c) => c.name);
   return { family: t.family, humanoid: t.humanoid, clips: t.clips.map((c) => c.name), dances };
 }

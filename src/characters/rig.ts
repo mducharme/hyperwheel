@@ -39,6 +39,9 @@ function tokens(name: string) {
     .filter((t) => !/^(mixamorig\d*|armature|def|bip\d*|rig|org|mch)$/.test(t));
 }
 
+/** Limb words a side letter can be glued to once loaders strip the dot ("upperarm.l" → "upperarml"). */
+const LIMBS = /^(upperarm|uparm|arm|lowerarm|forearm|elbow|hand|wrist|shoulder|clavicle|upperleg|upleg|thigh|leg|lowerleg|calf|shin|knee|foot|ankle|toes?)$/;
+
 function classify(name: string): { side: 'left' | 'right' | null; part: string } {
   const t = tokens(name);
   let side: 'left' | 'right' | null = null;
@@ -47,7 +50,15 @@ function classify(name: string): { side: 'left' | 'right' | null; part: string }
     if (x === 'right' || x === 'r') return (side = 'right'), false;
     return true;
   });
-  return { side, part: rest.join('') };
+  let part = rest.join('');
+  // a side letter stuck to a limb word: GLTF and FBX loaders drop the "." in "upperarm.l"
+  if (!side) {
+    const suffix = part.match(/^(.+)([lr])$/);
+    const prefix = part.match(/^([lr])(.+)$/);
+    if (suffix && LIMBS.test(suffix[1])) [side, part] = [suffix[2] === 'l' ? 'left' : 'right', suffix[1]];
+    else if (prefix && LIMBS.test(prefix[2])) [side, part] = [prefix[1] === 'l' ? 'left' : 'right', prefix[2]];
+  }
+  return { side, part };
 }
 
 /**

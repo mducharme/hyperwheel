@@ -1,5 +1,5 @@
 import * as THREE from 'three/webgpu';
-import { CELEBRATORY, sharedDances, type CharacterInstance } from './loader';
+import { CELEBRATORY, isCelebration, NOT_CELEBRATORY, sharedDances, type CharacterInstance } from './loader';
 import type { Part } from './rig';
 import { debug, dgroup } from '../debug';
 
@@ -130,6 +130,26 @@ interface BoneRest {
 }
 
 /**
+ * A node's transform relative to `root`, built from the local matrices along the
+ * chain. Unlike world matrices this ignores everything above the model — the
+ * showcase scales it to nothing on entrances and exits, which would otherwise
+ * collapse every bone onto one point.
+ */
+function modelMatrix(node: THREE.Object3D, root: THREE.Object3D, out = new THREE.Matrix4()) {
+  const chain: THREE.Object3D[] = [];
+  for (let n: THREE.Object3D | null = node; n && n !== root; n = n.parent) chain.push(n);
+  out.identity();
+  for (let i = chain.length - 1; i >= 0; i--) out.multiply(chain[i].matrix);
+  return out;
+}
+
+const _m = new THREE.Matrix4();
+const _p = new THREE.Vector3();
+const _s = new THREE.Vector3();
+const modelQuaternion = (node: THREE.Object3D, root: THREE.Object3D, out = new THREE.Quaternion()) => (modelMatrix(node, root, _m).decompose(_p, out, _s), out);
+const modelPosition = (node: THREE.Object3D, root: THREE.Object3D, out = new THREE.Vector3()) => out.setFromMatrixPosition(modelMatrix(node, root, _m));
+
+/**
  * Makes a character celebrate: its own dance clips first, then dances borrowed
  * from other Mixamo characters, otherwise a procedural routine.
  */
@@ -140,6 +160,8 @@ export class Performer {
   private mixer: THREE.AnimationMixer;
   private routine: Routine | null = null;
   private rest = new Map<Part, BoneRest>();
+  /** The character's own left / up / forward in model space (routines are written for +X left, +Z forward). */
+  private basis = new THREE.Matrix3();
   private t = 0;
   private q = new THREE.Quaternion();
   private v = new THREE.Vector3();
@@ -154,7 +176,7 @@ export class Performer {
 
     const own = c.celebrations
       ? c.clips.filter((clip) => c.celebrations!.includes(clip.name))
-      : c.clips.filter((clip) => CELEBRATORY.test(clip.name));
+      : c.clips.filter((clip) => isCelebration(clip.name));
     const pool = [...own, ...sharedDances(c)];
     // real dances win most of the time; simple emotes/jumps share the stage with procedural routines
     const dancey = pool.some((clip) => /danc|salsa|flair|twerk|samba|step|groove|hip.?hop/i.test(clip.name));
@@ -213,7 +235,7 @@ export class Performer {
       log(
         c.celebrations
           ? `celebration clips come from the pack's list: ${c.celebrations.join(', ')}`
-          : `celebration clips = clips whose name matches ${CELEBRATORY} → ${own.length ? own.map((x) => x.name).join(', ') : 'none'}`,
+          : `celebration clips = clips whose name matches ${CELEBRATORY} (except ${NOT_CELEBRATORY}) → ${own.length ? own.map((x) => x.name).join(', ') : 'none'}`,
       );
       log(`borrowed dances: ${borrowed}${c.rig.family !== 'mixamo' ? ' (only Mixamo-style rigs can borrow dances)' : ''}`);
       log(`choice: ${own.length + borrowed ? `${Math.round(clipChance * 100)}% chance of a clip, otherwise a procedural routine` : 'no usable clips, so a procedural routine'}`);
@@ -235,33 +257,41 @@ export class Performer {
 
   private captureRest() {
     const root = this.c.object;
-    root.updateMatrixWorld(true);
-    const rootInv = root.getWorldQuaternion(new THREE.Quaternion()).invert();
+    root.updateMatrixWorld(true); // refreshes every local matrix too
     const bones = this.c.rig.bones;
     for (const part of ORDER) {
       const bone = bones[part];
       if (!bone) continue;
-      const model = rootInv.clone().multiply(bone.getWorldQuaternion(new THREE.Quaternion()));
+      const model = modelQuaternion(bone, root);
       const childPart = LIMB_CHILD[part];
       const child = (childPart && bones[childPart]) || bone.children.find((ch) => (ch as THREE.Bone).isBone);
       let dir = DOWN.clone();
       if (child) {
-        const a = bone.getWorldPosition(new THREE.Vector3());
-        const b = child.getWorldPosition(new THREE.Vector3());
-        if (b.distanceToSquared(a) > 1e-8) dir = b.sub(a).applyQuaternion(rootInv).normalize();
+        const a = modelPosition(bone, root);
+        const b = modelPosition(child, root);
+        if (b.distanceToSquared(a) > 1e-12) dir = b.sub(a).normalize();
       }
       this.rest.set(part, { bone, local: bone.quaternion.clone(), model, dir });
     }
+    // which way the character faces: its left side is where its left arm (or leg) is
+    const pair = (['UpperArm', 'UpperLeg'] as const).map((k) => [bones[`left${k}`], bones[`right${k}`]]).find(([l, r]) => l && r);
+    const left = new THREE.Vector3(1, 0, 0);
+    if (pair) {
+      const across = modelPosition(pair[0]!, root).sub(modelPosition(pair[1]!, root)).setY(0);
+      if (across.lengthSq() > 1e-12) left.copy(across.normalize());
+    }
+    const up = new THREE.Vector3(0, 1, 0);
+    const forward = new THREE.Vector3().crossVectors(left, up);
+    this.basis.set(left.x, up.x, forward.x, left.y, up.y, forward.y, left.z, up.z, forward.z);
   }
 
-  /** Rotate a bone so its rest direction points at `target` (model space). */
-  private aim(r: BoneRest, target: V, rootInv: THREE.Quaternion) {
-    this.v.set(...target).normalize();
+  /** Rotate a bone so its rest direction points at `target` (in the character's own left/up/forward frame). */
+  private aim(r: BoneRest, target: V) {
+    this.v.set(...target).applyMatrix3(this.basis).normalize();
     const desired = this.q.setFromUnitVectors(r.dir, this.v).multiply(r.model);
-    const parent = r.bone.parent!;
-    const parentModel = rootInv.clone().multiply(parent.getWorldQuaternion(new THREE.Quaternion()));
+    const parentModel = modelQuaternion(r.bone.parent!, this.c.object);
     r.bone.quaternion.copy(parentModel.invert().multiply(desired));
-    r.bone.updateMatrixWorld(true);
+    r.bone.updateMatrix();
   }
 
   update(dt: number) {
@@ -274,15 +304,15 @@ export class Performer {
     this.motion.lean = pose.lean ?? 0;
     if (!Object.keys(pose.limbs).length) return;
 
-    const root = this.c.object;
-    root.updateMatrixWorld(true);
-    const rootInv = root.getWorldQuaternion(new THREE.Quaternion()).invert();
-    for (const r of this.rest.values()) r.bone.quaternion.copy(r.local);
-    root.updateMatrixWorld(true);
+    for (const r of this.rest.values()) {
+      r.bone.quaternion.copy(r.local);
+      r.bone.updateMatrix();
+    }
+    // parents first (ORDER), so each limb aims from where its parent ended up
     for (const part of ORDER) {
       const target = pose.limbs[part];
       const r = this.rest.get(part);
-      if (target && r) this.aim(r, target, rootInv);
+      if (target && r) this.aim(r, target);
     }
   }
 
