@@ -1,7 +1,8 @@
 /**
  * Preset wheels bundled with the site (see scripts/presetWheels.ts). They can't
- * be deleted: opening one imports a working copy the first time, tagged with
- * `preset`, and reopens that copy after — so edits never touch the original.
+ * be deleted. Opening one (from the list or by URL) always starts fresh: the
+ * file is imported again as a working copy tagged with `preset`, replacing the
+ * previous copy — all its names back, no results.
  */
 import { importWheel, wheels, type WheelDoc } from './wheels';
 import { cleanText, isObject } from './validate';
@@ -32,14 +33,14 @@ export function listPresets(): Promise<Preset[]> {
     .catch(() => []));
 }
 
-/** The working copy of a preset, imported on first use. */
+/** A fresh working copy of a preset (replacing any earlier one). */
 export async function openPreset(p: Preset): Promise<WheelDoc> {
-  const existing = (await wheels.list()).find((w) => w.preset === p.file);
-  if (existing) return existing;
   const res = await fetch(url(encodeURIComponent(p.file)));
   if (!res.ok) throw new Error(`Couldn't load “${p.title}”.`);
   // presets go through the same untrusted-file import as anything else
   const { wheel } = await importWheel(await res.blob());
+  // only once the new copy exists, so a failed download leaves the old one in place
+  for (const old of await wheels.list()) if (old.preset === p.file && old.id !== wheel.id) await wheels.remove(old.id);
   wheel.preset = p.file;
   await wheels.save(wheel);
   return wheel;

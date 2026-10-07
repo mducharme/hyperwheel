@@ -129,11 +129,11 @@ export class WheelMenu {
   }
 
   /** A clickable row: thumbnail, title and a line of details. */
-  private rowButton(title: string, details: string, thumb: string | undefined, current: boolean, onOpen: () => Promise<void> | void) {
+  private rowButton(title: string, details: string, thumb: string | undefined, current: boolean, onOpen: () => Promise<void> | void, reopen = false) {
     const pic = thumb ? el('img', { src: thumb, alt: '' }) : el('span', { className: 'thumb-empty' }, '🎡');
     const open = el('button', { className: `wheel-row${current ? ' current' : ''}` }, pic, el('span', { className: 'meta' }, el('strong', {}, title), el('small', {}, details)));
     open.addEventListener('click', async () => {
-      if (current) return this.dialog.close();
+      if (current && !reopen) return this.dialog.close();
       if (!this.canSwitch()) return toast('Wait for the wheel to stop first.');
       this.dialog.close();
       try {
@@ -147,11 +147,12 @@ export class WheelMenu {
 
   private presetRow(p: Preset, copy: WheelDoc | undefined) {
     const current = !!copy && copy.id === this.session.doc.id;
-    const details = copy ? `${copy.entries.length} names · ${timeAgo(copy.updatedAt)}${current ? ' · open' : ''}` : `${p.names} names`;
-    const open = this.rowButton(copy?.title ?? p.title, `📌 Preset · ${details}`, copy?.thumb, current, async () => {
+    // presets always open fresh (the original names, no results), even the one that's open now
+    const open = this.rowButton(p.title, `📌 Preset · ${p.names} names${current ? ' · open — click to reset' : ''}`, copy?.thumb, current, async () => {
       await this.session.save();
       this.session.open(await openPreset(p));
-    });
+      if (current) toast(`“${p.title}” reset`);
+    }, true);
     return el('li', { className: 'preset' }, open);
   }
 
