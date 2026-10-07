@@ -32,6 +32,7 @@ const app = new App(canvas, {
   onResult: (name, index, celebration) => ui.onResult(name, index, celebration),
   onCharacter: (info) => ui.onCharacter(info),
   onFps: (fps) => ui.onFps(fps),
+  onQuality: (level) => ui?.onQuality(level),
   onFirstFrame: () => {
     document.body.classList.add('ready');
     setTimeout(() => document.getElementById('boot')?.remove(), 800);

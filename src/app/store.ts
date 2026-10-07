@@ -1,3 +1,4 @@
+import type { QualityPref } from '../engine/quality';
 import { LIMITS } from '../library/limits';
 
 const STORE_KEY = 'hyperwheel:v1';
@@ -18,6 +19,8 @@ export interface Prefs {
   lastTheme: string | null;
   /** Spin songs from every scene instead of only the current one. */
   musicMix: boolean;
+  /** Graphics quality (resolution + bloom); Auto adapts to the device. */
+  graphics: QualityPref;
 }
 
 /** Fields from before wheels moved to IndexedDB, read once for migration. */
@@ -32,7 +35,7 @@ export interface LegacyState {
   results?: { name: string; at: number }[];
 }
 
-const defaults: Prefs = { sound: true, music: true, fx: true, characters: true, currentWheel: null, packs: null, lastTheme: null, musicMix: false };
+const defaults: Prefs = { sound: true, music: true, fx: true, characters: true, currentWheel: null, packs: null, lastTheme: null, musicMix: false, graphics: 'auto' };
 
 const raw: (Prefs & LegacyState) | null = (() => {
   try {
@@ -44,13 +47,14 @@ const raw: (Prefs & LegacyState) | null = (() => {
 })();
 
 export const store: Prefs = { ...defaults, ...(raw ?? {}) };
+if (!['auto', 'high', 'medium', 'low'].includes(store.graphics)) store.graphics = 'auto';
 store.lastTheme ??= raw?.theme ?? null;
 export const legacy: LegacyState | null = raw && raw.text !== undefined ? raw : null;
 
 export function persist() {
   try {
-    const { sound, music, fx, characters, currentWheel, packs, lastTheme, musicMix } = store;
-    localStorage.setItem(STORE_KEY, JSON.stringify({ sound, music, fx, characters, currentWheel, packs, lastTheme, musicMix }));
+    const { sound, music, fx, characters, currentWheel, packs, lastTheme, musicMix, graphics } = store;
+    localStorage.setItem(STORE_KEY, JSON.stringify({ sound, music, fx, characters, currentWheel, packs, lastTheme, musicMix, graphics }));
   } catch {
     /* private mode etc. */
   }

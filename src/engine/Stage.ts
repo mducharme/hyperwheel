@@ -18,6 +18,7 @@ import {
 import { bloom } from 'three/addons/tsl/display/BloomNode.js';
 import { chromaticAberration } from 'three/addons/tsl/display/ChromaticAberrationNode.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import type { QualitySettings } from './quality';
 
 export interface PostStyle {
   bloom: [strength: number, radius: number, threshold: number];
@@ -124,6 +125,12 @@ export class Stage {
     this.bloomNode.radius.value = style.bloom[1];
     this.bloomNode.threshold.value = style.bloom[2];
     this.uVignette.value = style.vignette;
+  }
+
+  /** Render resolution and bloom buffer size (see quality.ts). */
+  setQuality(q: QualitySettings & { pixelRatio: number }) {
+    if (this.renderer.getPixelRatio() !== q.pixelRatio) this.renderer.setPixelRatio(q.pixelRatio);
+    this.bloomNode.setResolutionScale(q.bloom);
   }
 
   setFx(on: boolean) {

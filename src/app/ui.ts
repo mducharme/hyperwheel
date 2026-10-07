@@ -1,3 +1,4 @@
+import type { QualityLevel, QualityPref } from '../engine/quality';
 import type { App } from './App';
 import { parseNames, persist, store } from './store';
 import { $, el } from './dom';
@@ -147,6 +148,12 @@ export class UI {
     if (!info) this.winnerEl.classList.remove('with-character');
   }
 
+  /** Shows which level Auto settled on. */
+  onQuality(level: QualityLevel) {
+    const name = level[0].toUpperCase() + level.slice(1);
+    $('graphics-note').textContent = store.graphics === 'auto' ? `using ${name}` : 'lower is smoother on slow devices';
+  }
+
   onFps(fps: number | null) {
     $('fps').textContent = fps === null ? 'idle' : `${fps} fps`;
   }
@@ -274,6 +281,26 @@ export class UI {
     });
     toggle('fx', 'fx', (on) => this.app.stage.setFx(on));
     toggle('characters', 'characters', (on) => (this.app.charactersEnabled = on));
+
+    const graphics = $('graphics');
+    const syncGraphics = () => {
+      graphics.querySelectorAll<HTMLButtonElement>('button').forEach((b) => {
+        const on = b.dataset.q === store.graphics;
+        b.classList.toggle('active', on);
+        b.setAttribute('aria-checked', String(on));
+      });
+      this.onQuality(this.app.quality);
+    };
+    graphics.querySelectorAll<HTMLButtonElement>('button').forEach((b) =>
+      b.addEventListener('click', () => {
+        store.graphics = b.dataset.q as QualityPref;
+        this.app.setQualityPref(store.graphics);
+        persist();
+        syncGraphics();
+      }),
+    );
+    this.app.setQualityPref(store.graphics);
+    syncGraphics();
 
     const mix = $('music-source');
     const syncMix = () => {

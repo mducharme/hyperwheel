@@ -1,4 +1,5 @@
 import * as THREE from 'three/webgpu';
+import { AutoQuality, qualitySettings, type QualityLevel, type QualityPref } from '../engine/quality';
 import { Stage } from '../engine/Stage';
 import { CameraRig, type Insets } from '../engine/CameraRig';
 import { Spin, segmentAtPointer } from '../engine/physics';
@@ -41,6 +42,8 @@ export interface AppEvents {
   onCharacter?(info: { name: string; description: string } | null): void;
   /** Measured frame rate, or null while idle (throttled on purpose). */
   onFps(fps: number | null): void;
+  /** The graphics level in use changed (Auto stepping down, or a new preference). */
+  onQuality?(level: QualityLevel): void;
   /** The first frame has been drawn. */
   onFirstFrame?(): void;
 }
@@ -91,6 +94,13 @@ export class App {
   /** Full frame rate until this time (elapsed seconds); idle scenes drop to IDLE_FPS. */
   private activeUntil = 0;
   private lastRender = 0;
+  private lastTick = 0;
+  private wasIdle = true;
+
+  /** Graphics preference; Auto adapts `quality` to how the device keeps up. */
+  private qualityPref: QualityPref = 'auto';
+  private autoQuality = new AutoQuality(() => this.applyQuality());
+  quality: QualityLevel = this.autoQuality.level;
 
   constructor(
     private canvas: HTMLCanvasElement,
@@ -172,6 +182,18 @@ export class App {
 
   start() {
     this.stage.renderer.setAnimationLoop(() => this.frame());
+  }
+
+  setQualityPref(pref: QualityPref) {
+    this.qualityPref = pref;
+    this.applyQuality();
+  }
+
+  private applyQuality() {
+    this.quality = this.qualityPref === 'auto' ? this.autoQuality.level : this.qualityPref;
+    this.stage.setQuality(qualitySettings(this.quality));
+    this.autoQuality.pause(2000);
+    this.events.onQuality?.(this.quality);
   }
 
   /** Run at full frame rate for at least `seconds` (spins, celebrations and input call this). */
@@ -351,6 +373,7 @@ export class App {
 
     if (!first) this.stage.triggerRipple(WHEEL_CENTER, 1.2, 1.2);
     this.wake(2); // crossfade + ripple
+    this.autoQuality.pause(3000); // new shaders may still be compiling
   }
 
   /** Play a specific celebration by index (or a random one). Returns its name. */
@@ -377,6 +400,7 @@ export class App {
     if (!this.canSpin) return;
     this.bus.unlock();
     this.spin.launch(this.duration, direction, strength);
+    this.autoQuality.spinStarted();
     // the result is decided at launch, so the winner's character can load during the spin
     if (this.charactersEnabled) {
       const winner = this.entries[segmentAtPointer(this.spin.target, this.entries.length)];
@@ -410,7 +434,17 @@ export class App {
     // Idle (nothing spinning, celebrating or being touched): skip display frames down to
     // ~30 fps to save GPU time and battery. The small slack keeps 60 Hz screens at every
     // second frame and 120 Hz at every fourth instead of jittering.
-    if (this.firstFrame && this.idle && now - this.lastRender < 1000 / IDLE_FPS - 4) return;
+    const idle = this.idle;
+    if (idle) this.autoQuality.idleTick(now - this.lastTick);
+    this.lastTick = now;
+    if (this.firstFrame && idle && now - this.lastRender < 1000 / IDLE_FPS - 4) return;
+    // frame time while something is moving drives Auto quality (the first frame after idle spans a throttled gap)
+    if (this.qualityPref === 'auto') {
+      if (!idle && !this.wasIdle) this.autoQuality.activeFrame(now - this.lastRender, now);
+      // a level change on settling happens while nothing is moving, so it isn't noticed
+      else if (idle && !this.wasIdle) this.autoQuality.settled(now);
+    }
+    this.wasIdle = idle;
     this.lastRender = now;
     const dt = Math.min(0.05, (now - this.last) / 1000);
     this.last = now;
