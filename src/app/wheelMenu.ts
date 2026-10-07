@@ -95,7 +95,7 @@ export class WheelMenu {
             prompt('Copy this share link:', url);
             return;
           }
-          toast(dropped ? `Link copied — uploaded models/audio aren't included (${dropped}). Use Export for those.` : 'Share link copied!');
+          toast(dropped ? `Link copied — uploaded models aren't included (${dropped}). Use Export for those.` : 'Share link copied!');
           break;
         }
         case 'delete': {

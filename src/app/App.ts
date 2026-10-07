@@ -81,9 +81,7 @@ export class App {
   private lastCelebration = -1;
 
   entries: Entry[] = [];
-  duration = 8;
-  /** Show the winner's 3D character. */
-  charactersEnabled = true;
+  duration = 20;
   readonly showcase: Showcase;
   private thumbRequests: ((url: string | null) => void)[] = [];
   /** Blocks spins (e.g. while the winner dialog is open). */
@@ -411,10 +409,8 @@ export class App {
       dlog('🎡 spin', `→ “${this.entries[i]?.name}” (#${i + 1} of ${this.entries.length}), ${this.duration}s`);
     }
     // the result is decided at launch, so the winner's character can load during the spin
-    if (this.charactersEnabled) {
-      const winner = this.entries[segmentAtPointer(this.spin.target, this.entries.length)];
-      if (winner) this.showcase.preload(this.characterFor(winner));
-    }
+    const winner = this.entries[segmentAtPointer(this.spin.target, this.entries.length)];
+    if (winner) this.showcase.preload(this.characterFor(winner));
     this.sfx.whoosh();
     this.music.startSpin();
     this.winAt = -1;
@@ -428,14 +424,12 @@ export class App {
     const celebration = this.celebrate();
     const entry = this.entries[index];
     this.events.onResult(entry.name, index, celebration);
-    if (this.charactersEnabled) {
-      const characterId = this.characterFor(entry);
-      void this.showcase.present(characterId, entry.name).then((ok) => {
-        if (!ok) dlog('🕺 character', `“${entry.name}”: ${characterId} failed to load`);
-        if (ok) this.wake(8); // entrance + first dance at full rate
-        this.events.onCharacter?.(ok ? this.showcase.current : null);
-      });
-    }
+    const characterId = this.characterFor(entry);
+    void this.showcase.present(characterId, entry.name).then((ok) => {
+      if (!ok) dlog('🕺 character', `“${entry.name}”: ${characterId} failed to load`);
+      if (ok) this.wake(8); // entrance + first dance at full rate
+      this.events.onCharacter?.(ok ? this.showcase.current : null);
+    });
   }
 
   // ------------------------------------------------------------------ frame

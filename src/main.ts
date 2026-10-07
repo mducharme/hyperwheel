@@ -23,7 +23,7 @@ document.body.classList.toggle('debug', store.debug);
  */
 async function warmDanceLibrary() {
   const idle = () => new Promise<void>((r) => ('requestIdleCallback' in window ? requestIdleCallback(() => r()) : setTimeout(r, 200)));
-  const assets = await listAssets('model');
+  const assets = await listAssets();
   if (!assets.length) return;
   const { loadTemplateCached } = await import('./characters/loader');
   for (const asset of assets) {

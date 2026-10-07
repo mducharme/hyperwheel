@@ -59,7 +59,7 @@ export class EntriesView {
   }
 
   private async refreshUploads() {
-    this.uploads = await listAssets('model');
+    this.uploads = await listAssets();
   }
 
   private label(id: string) {
@@ -192,7 +192,7 @@ export class EntriesView {
     for (const file of files) {
       try {
         toast(`Loading ${file.name}…`);
-        const asset = await putAsset(file, 'model', file.name);
+        const asset = await putAsset(file, file.name);
         const info = await (await loader()).inspect(asset.id);
         first ??= asset.id;
         const rig = info.family === 'mixamo' ? 'Mixamo rig' : info.family === 'kenney' ? 'blocky rig' : info.humanoid ? 'humanoid rig' : 'no humanoid rig found (it will bounce instead)';

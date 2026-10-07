@@ -1,7 +1,6 @@
 /**
- * Tiny promise wrapper around IndexedDB. Wheels, uploaded files (models,
- * audio) and cached thumbnails all live here — localStorage is far too small
- * for binary assets.
+ * Tiny promise wrapper around IndexedDB. Wheels, uploaded models and cached
+ * thumbnails all live here — localStorage is far too small for binary assets.
  */
 const DB_NAME = 'hyperwheel';
 const VERSION = 1;

@@ -4,8 +4,6 @@ export const LIMITS = {
   nameLength: 120,
   titleLength: 60,
   results: 200,
-  /** Uploaded spin songs / win sounds per wheel. */
-  audioPerKind: 40,
   duration: { min: 3, max: 20 },
 
   /** .hyperwheel import */
@@ -19,7 +17,5 @@ export const LIMITS = {
   shareJsonBytes: 256 * 1024,
 } as const;
 
-export const MIME_ALLOWED = {
-  model: ['model/gltf-binary', 'application/octet-stream', 'model/fbx', ''],
-  audio: ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/x-wav', 'audio/wave', 'audio/ogg', 'audio/webm', 'audio/mp4', 'audio/x-m4a', 'audio/aac', 'audio/flac', ''],
-} as const;
+/** File types accepted for bundled models in an imported wheel. */
+export const MODEL_MIME: readonly string[] = ['model/gltf-binary', 'application/octet-stream', 'model/fbx', ''];

@@ -1,7 +1,7 @@
-import { newWheel, readShareLink, wheels, DEFAULT_SETTINGS, type WheelDoc } from '../library/wheels';
-import { DEFAULT_NAMES, legacy, persist, store } from './store';
+import { newWheel, readShareLink, wheels, type WheelDoc } from '../library/wheels';
+import { DEFAULT_NAMES, persist, store } from './store';
 
-export type Change = 'open' | 'entries' | 'settings' | 'audio' | 'title' | 'results';
+export type Change = 'open' | 'entries' | 'settings' | 'title' | 'results';
 
 /**
  * The wheel being edited. Every change autosaves (debounced), so there's no
@@ -22,7 +22,7 @@ export class Session {
     this.listeners.forEach((fn) => fn(c));
   }
 
-  /** Boot: a share link, else the last wheel, else migrate the pre-library state. */
+  /** Boot: a share link, else the last wheel, else a fresh one. */
   async load(): Promise<{ fromLink: boolean; linkError?: string }> {
     const shared = await readShareLink();
     let linkError: string | undefined;
@@ -36,18 +36,7 @@ export class Session {
     let doc = store.currentWheel ? await wheels.get(store.currentWheel) : undefined;
     doc ??= (await wheels.list())[0];
     if (!doc) {
-      doc = newWheel('My wheel', legacy?.text ? legacy.text.split('\n').map((s) => s.trim()).filter(Boolean) : DEFAULT_NAMES);
-      if (legacy) {
-        doc.settings = {
-          ...DEFAULT_SETTINGS,
-          theme: legacy.theme ?? DEFAULT_SETTINGS.theme,
-          duration: legacy.duration ?? DEFAULT_SETTINGS.duration,
-          removeWinner: legacy.removeWinner ?? legacy.autoremove ?? false,
-          autoSwitch: legacy.autoSwitch ?? true,
-          switchMode: legacy.switchMode ?? 'random',
-        };
-        doc.results = legacy.results ?? [];
-      }
+      doc = newWheel('My wheel', DEFAULT_NAMES);
       await wheels.save(doc);
     }
     this.open(doc);

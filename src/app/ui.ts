@@ -6,7 +6,6 @@ import { $, el } from './dom';
 import { Session } from './session';
 import { WheelMenu } from './wheelMenu';
 import { EntriesView } from './entriesView';
-import { AudioPanel } from './audioPanel';
 import { reconcile } from '../library/wheels';
 import { THEMES, getTheme, type ThemeEntry } from '../themes';
 import { DEFAULT_PACKS, PACKS, setEnabledPacks } from '../characters/catalog';
@@ -63,7 +62,6 @@ export class UI {
     this.initWinner();
     new WheelMenu(this.session, () => !this.app.spin.spinning && this.winnerEl.hidden === true).init();
     new EntriesView(this.app, this.session).init();
-    new AudioPanel(this.app, this.session).init();
 
     window.addEventListener('keydown', (e) => {
       if (!this.winnerEl.hidden) {
@@ -116,13 +114,10 @@ export class UI {
     $('hint').classList.add('gone');
     this.spinBtn.disabled = true;
     // the next scene is decided now and built while the wheel turns
-    this.upcoming = this.session.doc.settings.autoSwitch ? this.pickNextTheme() : null;
-    if (this.upcoming) {
-      const next = this.upcoming;
-      void next.load().then((theme) => {
-        if (this.upcoming === next) this.app.prepareTheme(theme);
-      });
-    }
+    const next = (this.upcoming = this.pickNextTheme());
+    void next.load().then((theme) => {
+      if (this.upcoming === next) this.app.prepareTheme(theme);
+    });
   }
 
   onResult(name: string, index: number, celebration: string) {
@@ -139,7 +134,8 @@ export class UI {
       $('w-remove-name').textContent = name;
       $('winner-celebration').textContent = celebration ? `✦ ${celebration} ✦` : '';
       this.removeEl.checked = doc.settings.removeWinner;
-      this.winnerEl.classList.toggle('with-character', this.app.charactersEnabled);
+      // laid out for the character; falls back to centred if the model can't load
+      this.winnerEl.classList.add('with-character');
       this.winnerEl.hidden = false;
       $('w-again').focus();
     }, 450);
@@ -187,7 +183,7 @@ export class UI {
     if (this.removeEl.checked && this.pending) this.removeEntry(this.pending);
     this.pending = null;
     // stay locked while the next scene loads so a stray Space can't spin mid-switch
-    if (this.session.doc.settings.autoSwitch) await this.selectTheme(this.upcoming ?? this.pickNextTheme());
+    await this.selectTheme(this.upcoming ?? this.pickNextTheme());
     this.upcoming = null;
     this.app.locked = false;
     this.spinBtn.disabled = this.app.names.length === 0;
@@ -265,7 +261,7 @@ export class UI {
 
   /** Device-wide preferences (not saved with wheels). */
   private initPrefs() {
-    const toggle = (id: string, key: 'sound' | 'music' | 'fx' | 'characters' | 'debug', apply: (on: boolean) => void) => {
+    const toggle = (id: string, key: 'sound' | 'music' | 'debug', apply: (on: boolean) => void) => {
       const input = $<HTMLInputElement>(id);
       input.checked = store[key];
       apply(store[key]);
@@ -280,8 +276,6 @@ export class UI {
       this.app.music.enabled = on;
       if (!on) this.app.music.stop(0.2);
     });
-    toggle('fx', 'fx', (on) => this.app.stage.setFx(on));
-    toggle('characters', 'characters', (on) => (this.app.charactersEnabled = on));
     toggle('debug', 'debug', (on) => {
       debug.enabled = on;
       document.body.classList.toggle('debug', on);
@@ -307,23 +301,6 @@ export class UI {
     this.app.setQualityPref(store.graphics);
     syncGraphics();
 
-    const mix = $('music-source');
-    const syncMix = () => {
-      this.app.music.setMixAll(store.musicMix);
-      mix.querySelectorAll<HTMLButtonElement>('button').forEach((b) => {
-        const on = (b.dataset.mix === 'all') === store.musicMix;
-        b.classList.toggle('active', on);
-        b.setAttribute('aria-checked', String(on));
-      });
-    };
-    mix.querySelectorAll<HTMLButtonElement>('button').forEach((b) =>
-      b.addEventListener('click', () => {
-        store.musicMix = b.dataset.mix === 'all';
-        persist();
-        syncMix();
-      }),
-    );
-    syncMix();
     this.initPacks();
   }
 
@@ -364,21 +341,6 @@ export class UI {
       this.syncWheelSettings();
       this.session.touch('settings');
     });
-    const auto = $<HTMLInputElement>('autoswitch');
-    auto.addEventListener('change', () => {
-      this.session.doc.settings.autoSwitch = auto.checked;
-      this.syncWheelSettings();
-      this.session.touch('settings');
-    });
-    $('switch-mode')
-      .querySelectorAll<HTMLButtonElement>('button')
-      .forEach((b) =>
-        b.addEventListener('click', () => {
-          this.session.doc.settings.switchMode = b.dataset.mode as 'next' | 'random';
-          this.syncWheelSettings();
-          this.session.touch('settings');
-        }),
-      );
   }
 
   private syncWheelSettings() {
@@ -387,15 +349,6 @@ export class UI {
     duration.value = String(s.duration);
     $('duration-out').textContent = `${s.duration}s`;
     this.app.duration = s.duration;
-    $<HTMLInputElement>('autoswitch').checked = s.autoSwitch;
-    const modes = $('switch-mode');
-    modes.classList.toggle('disabled', !s.autoSwitch);
-    modes.querySelectorAll<HTMLButtonElement>('button').forEach((b) => {
-      const on = b.dataset.mode === s.switchMode;
-      b.classList.toggle('active', on);
-      b.setAttribute('aria-checked', String(on));
-      b.disabled = !s.autoSwitch;
-    });
   }
 
   // ------------------------------------------------------------------ scenes
@@ -421,12 +374,10 @@ export class UI {
     }
   }
 
-  /** The scene to load after a spin: next in the list, or a random different one. */
+  /** The scene to load after a spin: a random different one. */
   private pickNextTheme(): ThemeEntry {
-    const i = THEMES.findIndex((t) => t.id === this.app.theme?.id);
-    if (this.session.doc.settings.switchMode === 'next' || THEMES.length < 2) return THEMES[(i + 1) % THEMES.length];
-    const others = THEMES.filter((_, j) => j !== i);
-    return others[Math.floor(Math.random() * others.length)];
+    const others = THEMES.filter((t) => t.id !== this.app.theme?.id);
+    return others.length ? others[Math.floor(Math.random() * others.length)] : THEMES[0];
   }
 
   async selectTheme(theme: ThemeEntry) {

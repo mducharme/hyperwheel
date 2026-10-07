@@ -14,17 +14,11 @@ export interface ThemeMusic {
 
 type Kind = 'spin' | 'win';
 
-/** An uploaded audio file for this wheel. */
-export interface CustomFile {
-  id: string;
-  name?: string;
-  blob: Blob;
-}
 
-/** Something playable: a generated track URL or an uploaded file. */
+/** A generated track to play. */
 interface Source {
   key: string;
-  /** For the debug log: `synthwave/spin-3.mp3` or `upload “my song.mp3”`. */
+  /** For the debug log, e.g. `synthwave/spin-3.mp3`. */
   label: string;
   load(): Promise<ArrayBuffer>;
 }
@@ -61,10 +55,9 @@ function audibleRange(buffer: AudioBuffer): { start: number; end: number } {
 /**
  * Spin music and win stings, wheelofnames-style.
  *
- * Sources, in priority order: the wheel's uploaded files, then generated tracks
- * in `public/music/<scene>/` (this scene's, or every scene's spin songs when
- * `mixAll` is on), then the scene's procedural chiptune — so the app sounds
- * right before any audio has been generated.
+ * Plays the current scene's generated tracks from `public/music/<scene>/`,
+ * falling back to the scene's procedural chiptune — so the app sounds right
+ * before any audio has been generated.
  *
  * Rather than decoding everything up front (dozens of tracks would cost
  * hundreds of MB), the player always keeps the *next* random pick decoded and
@@ -72,11 +65,9 @@ function audibleRange(buffer: AudioBuffer): { start: number; end: number } {
  */
 export class Music {
   enabled = true;
-  private mixAll = false;
   private synth: ChipSynth;
   private themeId = '';
   private song: ChipSong | null = null;
-  private custom: Record<Kind, Source[]> = { spin: [], win: [] };
   private missing = new Set<string>();
   private cache = new Map<string, AudioBuffer>();
   private next: Record<Kind, Prepared | null> = { spin: null, win: null };
@@ -101,19 +92,7 @@ export class Music {
     this.refresh();
   }
 
-  /** Spin songs from every scene instead of only the current one. */
-  setMixAll(on: boolean) {
-    if (this.mixAll === on) return;
-    this.mixAll = on;
-    this.refresh('spin');
-  }
 
-  /** The wheel's uploaded files; they replace the scene's music while present. */
-  setCustom(spin: CustomFile[], win: CustomFile[]) {
-    const wrap = (f: CustomFile): Source => ({ key: `upload:${f.id}`, label: `upload “${f.name ?? f.id}”`, load: () => f.blob.arrayBuffer() });
-    this.custom = { spin: spin.map(wrap), win: win.map(wrap) };
-    this.refresh();
-  }
 
   // ------------------------------------------------------------------ choosing & decoding
 
@@ -122,10 +101,8 @@ export class Music {
   }
 
   private pool(kind: Kind): Source[] {
-    if (this.custom[kind].length) return this.custom[kind];
-    const themes = kind === 'spin' && this.mixAll ? Object.keys(this.manifests) : [this.themeId];
-    return themes
-      .flatMap((theme) => (this.manifests[theme]?.[kind] ?? []).map((t) => this.trackUrl(theme, t)))
+    return (this.manifests[this.themeId]?.[kind] ?? [])
+      .map((t) => this.trackUrl(this.themeId, t))
       .filter((url) => !this.missing.has(url))
       .map((url) => ({
         key: url,
@@ -148,7 +125,7 @@ export class Music {
       if (this.cache.size > CACHE_SIZE) this.cache.delete(this.cache.keys().next().value!);
       return buffer;
     } catch {
-      if (!src.key.startsWith('upload:')) this.missing.add(src.key);
+      this.missing.add(src.key);
       return null;
     }
   }
@@ -175,8 +152,8 @@ export class Music {
   }
 
   /** Sources changed: drop stale picks and prepare fresh ones once audio is available. */
-  private refresh(kind?: Kind) {
-    for (const k of kind ? [kind] : (['spin', 'win'] as const)) {
+  private refresh() {
+    for (const k of ['spin', 'win'] as const) {
       this.next[k] = null;
       this.bus.onReady(() => {
         if (!this.next[k]) this.prepare(k);

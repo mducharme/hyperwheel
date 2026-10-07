@@ -60,7 +60,7 @@
           <button data-action="open" role="menuitem">📂 Open…</button>
           <button data-action="duplicate" role="menuitem">⧉ Duplicate</button>
           <hr />
-          <button data-action="export" role="menuitem">⬇ Export file (with models &amp; audio)</button>
+          <button data-action="export" role="menuitem">⬇ Export file (with models)</button>
           <button data-action="import" role="menuitem">⬆ Import file…</button>
           <button data-action="share" role="menuitem">🔗 Copy share link</button>
           <hr />
@@ -114,39 +114,15 @@
           <div id="previews" class="previews"></div>
         </div>
         <label class="field">
-          <span>Spin duration <output id="duration-out">8s</output></span>
-          <input id="duration" type="range" min="3" max="20" step="1" value="8" />
+          <span>Spin duration <output id="duration-out">20s</output></span>
+          <input id="duration" type="range" min="3" max="20" step="1" value="20" />
         </label>
-        <div class="field">
-          <label class="check"><input id="autoswitch" type="checkbox" checked /> Switch scene after each spin</label>
-          <div id="switch-mode" class="segmented" role="radiogroup" aria-label="Which scene comes next">
-            <button data-mode="next" role="radio">Next in order</button>
-            <button data-mode="random" role="radio">Random</button>
-          </div>
-        </div>
-        <div class="field audio-field">
-          <span>This wheel's music</span>
-          <ul id="spin-tracks" class="file-list"></ul>
-          <button id="add-spin" class="ghost-btn">⬆ Add spin songs</button>
-          <span class="sub">Win sounds <small class="muted">one is picked at random</small></span>
-          <ul id="win-tracks" class="file-list"></ul>
-          <button id="add-win" class="ghost-btn">⬆ Add win sounds</button>
-          <label class="check"><input id="audio-enabled" type="checkbox" checked /> Use my audio instead of the scene's</label>
-        </div>
-        <label class="check"><input id="characters" type="checkbox" checked /> Show the winner's 3D character</label>
         <div class="field">
           <span>Character packs <small class="muted">used for names without a character</small></span>
           <div id="pack-list" class="pack-list"></div>
         </div>
-        <div class="field">
-          <label class="check"><input id="music" type="checkbox" checked /> Music</label>
-          <div id="music-source" class="segmented" role="radiogroup" aria-label="Which scenes' songs play">
-            <button data-mix="scene" role="radio">This scene's songs</button>
-            <button data-mix="all" role="radio">Songs from all scenes</button>
-          </div>
-        </div>
+        <label class="check"><input id="music" type="checkbox" checked /> Music</label>
         <label class="check"><input id="sound" type="checkbox" checked /> Sound effects</label>
-        <label class="check"><input id="fx" type="checkbox" checked /> Post-processing (bloom, ripples, aberration)</label>
         <div class="field">
           <span>Graphics quality <small id="graphics-note" class="muted"></small></span>
           <div id="graphics" class="segmented" role="radiogroup" aria-label="Graphics quality">
@@ -191,7 +167,6 @@
     </dialog>
 
     <input id="file-models" type="file" accept=".glb,.fbx,model/gltf-binary" multiple hidden />
-    <input id="file-audio" type="file" accept="audio/*,.mp3,.ogg,.wav,.m4a" hidden />
     <input id="file-wheel" type="file" accept=".hyperwheel,.zip" hidden />
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
 

@@ -11,7 +11,6 @@ export interface CleanWheel {
   title: string;
   entries: { name: string; character?: string }[];
   settings: Partial<WheelSettings>;
-  audio: { spin: string[]; wins: string[]; enabled: boolean };
   results: { name: string; at: number }[];
 }
 
@@ -33,7 +32,7 @@ const THEME_ID = /^[a-z0-9-]{1,32}$/;
 
 /**
  * @param input the raw `wheel` object from a manifest (or share link)
- * @param assets ids of uploaded files that actually exist (references to anything else are dropped)
+ * @param assets ids of uploaded models that actually exist (references to anything else are dropped)
  */
 export function sanitizeWheel(input: unknown, assets: Set<string>): CleanWheel {
   const w = isObject(input) ? input : {};
@@ -55,16 +54,7 @@ export function sanitizeWheel(input: unknown, assets: Set<string>): CleanWheel {
   if (typeof s.duration === 'number' && Number.isFinite(s.duration)) {
     settings.duration = Math.round(Math.min(LIMITS.duration.max, Math.max(LIMITS.duration.min, s.duration)));
   }
-  if (typeof s.autoSwitch === 'boolean') settings.autoSwitch = s.autoSwitch;
-  if (s.switchMode === 'next' || s.switchMode === 'random') settings.switchMode = s.switchMode;
   if (typeof s.removeWinner === 'boolean') settings.removeWinner = s.removeWinner;
-
-  const a = isObject(w.audio) ? w.audio : {};
-  const audioIds = (v: unknown) =>
-    [...new Set(array(v).filter((id): id is string => typeof id === 'string' && ASSET_ID.test(id) && assets.has(id)))].slice(0, LIMITS.audioPerKind);
-  // older files stored a single `win`
-  const wins = audioIds(a.wins ?? (a.win ? [a.win] : []));
-  const audio = { spin: audioIds(a.spin), wins, enabled: typeof a.enabled === 'boolean' ? a.enabled : true };
 
   const results: CleanWheel['results'] = [];
   for (const raw of array(w.results)) {
@@ -75,5 +65,5 @@ export function sanitizeWheel(input: unknown, assets: Set<string>): CleanWheel {
     if (name) results.push({ name, at });
   }
 
-  return { title: cleanText(w.title, LIMITS.titleLength) || 'Imported wheel', entries, settings, audio, results };
+  return { title: cleanText(w.title, LIMITS.titleLength) || 'Imported wheel', entries, settings, results };
 }

@@ -1,8 +1,8 @@
 // zip/deflate is only needed for export, import and share links: load it on demand
 const zip = () => import('fflate');
 import { db } from './db';
-import { getAsset, putAsset, MAX_SIZE, type AssetKind } from './assets';
-import { LIMITS, MIME_ALLOWED } from './limits';
+import { getAsset, putAsset, MAX_MODEL_SIZE } from './assets';
+import { LIMITS, MODEL_MIME } from './limits';
 import { array, cleanText, isObject, sanitizeWheel } from './validate';
 
 export interface Entry {
@@ -15,18 +15,7 @@ export interface Entry {
 export interface WheelSettings {
   theme: string;
   duration: number;
-  autoSwitch: boolean;
-  switchMode: 'next' | 'random';
   removeWinner: boolean;
-}
-
-export interface WheelAudio {
-  /** Uploaded spin tracks (asset ids). */
-  spin: string[];
-  /** Uploaded win sounds (asset ids); one is picked at random per win. */
-  wins: string[];
-  /** Prefer these over the scene's own music. */
-  enabled: boolean;
 }
 
 export interface WheelDoc {
@@ -34,7 +23,6 @@ export interface WheelDoc {
   title: string;
   entries: Entry[];
   settings: WheelSettings;
-  audio: WheelAudio;
   results: { name: string; at: number }[];
   createdAt: number;
   updatedAt: number;
@@ -44,9 +32,7 @@ export interface WheelDoc {
 
 export const DEFAULT_SETTINGS: WheelSettings = {
   theme: 'synthwave',
-  duration: 8,
-  autoSwitch: true,
-  switchMode: 'random',
+  duration: 20,
   removeWinner: false,
 };
 
@@ -59,17 +45,10 @@ export function newWheel(title = 'My wheel', names: string[] = []): WheelDoc {
     title,
     entries: names.map((name) => ({ id: uid(), name })),
     settings: { ...DEFAULT_SETTINGS },
-    audio: { spin: [], wins: [], enabled: true },
     results: [],
     createdAt: now,
     updatedAt: now,
   };
-}
-
-/** Older wheels stored a single `win` sound. */
-function normalizeAudio(a: Partial<WheelAudio> & { win?: string | null } = {}): WheelAudio {
-  const wins = a.wins ?? (a.win ? [a.win] : []);
-  return { spin: a.spin ?? [], wins, enabled: a.enabled ?? true };
 }
 
 /** Fill in fields added in later versions. */
@@ -78,7 +57,6 @@ function normalize(w: WheelDoc): WheelDoc {
     ...newWheel(w.title),
     ...w,
     settings: { ...DEFAULT_SETTINGS, ...w.settings },
-    audio: normalizeAudio(w.audio),
     results: w.results ?? [],
   };
 }
@@ -109,12 +87,9 @@ export const wheels = {
   },
 };
 
-/** Asset ids a wheel depends on (uploaded characters and audio). */
-export function wheelAssets(w: WheelDoc): { id: string; kind: AssetKind }[] {
-  const ids = new Map<string, AssetKind>();
-  for (const e of w.entries) if (e.character && !e.character.startsWith('builtin:')) ids.set(e.character, 'model');
-  for (const id of [...w.audio.spin, ...w.audio.wins]) ids.set(id, 'audio');
-  return [...ids].map(([id, kind]) => ({ id, kind }));
+/** Ids of the uploaded models a wheel uses. */
+export function wheelModels(w: WheelDoc): string[] {
+  return [...new Set(w.entries.map((e) => e.character).filter((c): c is string => !!c && !c.startsWith('builtin:')))];
 }
 
 // ------------------------------------------------------------------ text ↔ entries
@@ -135,7 +110,7 @@ interface Manifest {
   format: 'hyperwheel';
   version: 1;
   wheel: WheelDoc;
-  assets: { id: string; kind: AssetKind; name: string; type: string; path: string }[];
+  assets: { id: string; name: string; type: string; path: string }[];
 }
 
 /** Bundle a wheel and every file it uses into one downloadable zip. */
@@ -143,22 +118,22 @@ export async function exportWheel(w: WheelDoc): Promise<Blob> {
   const { strToU8, zipSync } = await zip();
   const files: Record<string, Uint8Array> = {};
   const manifest: Manifest = { format: 'hyperwheel', version: 1, wheel: { ...w, thumb: undefined }, assets: [] };
-  for (const { id } of wheelAssets(w)) {
+  for (const id of wheelModels(w)) {
     const a = await getAsset(id);
     if (!a) continue;
     const path = `assets/${id}-${a.name.replace(/[^\w.-]+/g, '_')}`;
     files[path] = new Uint8Array(await a.blob.arrayBuffer());
-    manifest.assets.push({ id, kind: a.kind, name: a.name, type: a.type, path });
+    manifest.assets.push({ id, name: a.name, type: a.type, path });
   }
   files['wheel.json'] = strToU8(JSON.stringify(manifest, null, 2));
-  // models and audio are already compressed; storing them avoids wasted CPU
+  // models are already compressed; storing them avoids wasted CPU
   const zipped = zipSync(files, { level: 0 });
   return new Blob([zipped as BlobPart], { type: 'application/zip' });
 }
 
 export interface ImportReport {
   wheel: WheelDoc;
-  /** Bundled files that were missing, too large or not a model/audio file. */
+  /** Bundled files that were missing, too large or not a model. */
   skipped: number;
 }
 
@@ -189,7 +164,7 @@ export async function importWheel(file: Blob): Promise<ImportReport> {
         if (f.name === 'wheel.json') return f.originalSize <= LIMITS.manifestBytes;
         if (!f.name.startsWith('assets/') || f.name.includes('..')) return false;
         if (++assetEntries > LIMITS.importAssets) return false;
-        if (f.originalSize > Math.max(MAX_SIZE.model, MAX_SIZE.audio)) return false;
+        if (f.originalSize > MAX_MODEL_SIZE) return false;
         if (declared + f.originalSize > LIMITS.importTotalBytes) return false;
         declared += f.originalSize;
         return true;
@@ -218,18 +193,15 @@ export async function importWheel(file: Blob): Promise<ImportReport> {
       skipped++;
       continue;
     }
-    const kind: AssetKind | null = a.kind === 'model' || a.kind === 'audio' ? a.kind : null;
-    const bytes = kind && typeof a.path === 'string' ? files[a.path] : undefined;
-    if (!kind || !bytes) {
+    const bytes = typeof a.path === 'string' ? files[a.path] : undefined;
+    if (!bytes) {
       skipped++;
       continue;
     }
-    const allowed: readonly string[] = MIME_ALLOWED[kind];
-    const type = typeof a.type === 'string' && allowed.includes(a.type) ? a.type : '';
-    const name = cleanText(a.name, LIMITS.nameLength) || (kind === 'model' ? 'model.glb' : 'audio');
+    const type = typeof a.type === 'string' && MODEL_MIME.includes(a.type) ? a.type : '';
+    const name = cleanText(a.name, LIMITS.nameLength) || 'model.glb';
     try {
-      const stored = await putAsset(new Blob([bytes as BlobPart], { type }), kind, name);
-      if (stored.kind !== kind) throw new Error('kind mismatch');
+      const stored = await putAsset(new Blob([bytes as BlobPart], { type }), name);
       if (typeof a.id === 'string') remap.set(a.id, stored.id);
     } catch {
       skipped++;
@@ -242,16 +214,12 @@ export async function importWheel(file: Blob): Promise<ImportReport> {
   const mapped = {
     ...w,
     entries: array(w.entries).map((e) => (isObject(e) ? { ...e, character: mapId(e.character) } : e)),
-    audio: isObject(w.audio)
-      ? { ...w.audio, spin: array(w.audio.spin).map(mapId), wins: array(w.audio.wins ?? (w.audio.win ? [w.audio.win] : [])).map(mapId) }
-      : w.audio,
   };
   const clean = sanitizeWheel(mapped, new Set(remap.values()));
 
   const wheel = newWheel(clean.title, []);
   wheel.entries = clean.entries.map((e) => ({ id: uid(), ...e }));
   wheel.settings = { ...DEFAULT_SETTINGS, ...clean.settings };
-  wheel.audio = clean.audio;
   wheel.results = clean.results;
   await wheels.save(wheel);
   return { wheel, skipped };
@@ -278,7 +246,7 @@ export async function shareLink(w: WheelDoc): Promise<{ url: string; dropped: nu
   if (builtins.some(Boolean)) payload.c = builtins;
   const data = b64url(deflateSync(strToU8(JSON.stringify(payload)), { level: 9 }));
   const url = `${location.origin}${location.pathname}#w=${data}`;
-  return { url, dropped: wheelAssets(w).length };
+  return { url, dropped: wheelModels(w).length };
 }
 
 /** Inflate at most `max` bytes, stopping as soon as the output passes it. */

@@ -51,7 +51,6 @@ export class Stage {
   private scenePass: any;
   private bloomNode: any;
   private fxNode: any;
-  private plainNode: any;
   private style: PostStyle = { bloom: [0.5, 0.45, 0.82], exposure: 1, aberration: 1, vignette: 0.55 };
 
   private ripple = { t: -1, dur: 1 };
@@ -99,7 +98,6 @@ export class Stage {
     const vignette = float(1).sub(smoothstep(0.35, 0.95, v).mul(this.uVignette));
     const flashed = split.rgb.mul(vignette).add((this.uFlashColor as any).mul(this.uFlash));
     this.fxNode = vec4(max(flashed, vec3(0)), 1);
-    this.plainNode = scenePass;
     this.pipeline.outputNode = this.fxNode;
   }
 
@@ -131,11 +129,6 @@ export class Stage {
   setQuality(q: QualitySettings & { pixelRatio: number }) {
     if (this.renderer.getPixelRatio() !== q.pixelRatio) this.renderer.setPixelRatio(q.pixelRatio);
     this.bloomNode.setResolutionScale(q.bloom);
-  }
-
-  setFx(on: boolean) {
-    this.pipeline.outputNode = on ? this.fxNode : this.plainNode;
-    this.pipeline.needsUpdate = true;
   }
 
   /** Screen-space shockwave from a world position. */

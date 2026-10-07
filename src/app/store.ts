@@ -10,36 +10,20 @@ export const DEFAULT_NAMES = ['Ada', 'Grace', 'Linus', 'Margaret', 'Alan', 'Hedy
 export interface Prefs {
   sound: boolean;
   music: boolean;
-  fx: boolean;
-  characters: boolean;
   currentWheel: string | null;
   /** Enabled built-in character packs (null = the defaults). */
   packs: string[] | null;
   /** Last scene shown — a hint to start downloading it before the wheel document is read. */
   lastTheme: string | null;
-  /** Spin songs from every scene instead of only the current one. */
-  musicMix: boolean;
   /** Graphics quality (resolution + bloom); Auto adapts to the device. */
   graphics: QualityPref;
   /** Debug mode: renderer/FPS badges and console logs (see src/debug.ts). */
   debug: boolean;
 }
 
-/** Fields from before wheels moved to IndexedDB, read once for migration. */
-export interface LegacyState {
-  text?: string;
-  theme?: string;
-  duration?: number;
-  removeWinner?: boolean;
-  autoremove?: boolean;
-  autoSwitch?: boolean;
-  switchMode?: 'next' | 'random';
-  results?: { name: string; at: number }[];
-}
+const defaults: Prefs = { sound: true, music: true, currentWheel: null, packs: null, lastTheme: null, graphics: 'auto', debug: false };
 
-const defaults: Prefs = { sound: true, music: true, fx: true, characters: true, currentWheel: null, packs: null, lastTheme: null, musicMix: false, graphics: 'auto', debug: false };
-
-const raw: (Prefs & LegacyState) | null = (() => {
+const raw: Partial<Prefs> | null = (() => {
   try {
     const s = localStorage.getItem(STORE_KEY);
     return s ? JSON.parse(s) : null;
@@ -50,13 +34,11 @@ const raw: (Prefs & LegacyState) | null = (() => {
 
 export const store: Prefs = { ...defaults, ...(raw ?? {}) };
 if (!['auto', 'high', 'medium', 'low'].includes(store.graphics)) store.graphics = 'auto';
-store.lastTheme ??= raw?.theme ?? null;
-export const legacy: LegacyState | null = raw && raw.text !== undefined ? raw : null;
 
 export function persist() {
   try {
-    const { sound, music, fx, characters, currentWheel, packs, lastTheme, musicMix, graphics, debug } = store;
-    localStorage.setItem(STORE_KEY, JSON.stringify({ sound, music, fx, characters, currentWheel, packs, lastTheme, musicMix, graphics, debug }));
+    const { sound, music, currentWheel, packs, lastTheme, graphics, debug } = store;
+    localStorage.setItem(STORE_KEY, JSON.stringify({ sound, music, currentWheel, packs, lastTheme, graphics, debug }));
   } catch {
     /* private mode etc. */
   }

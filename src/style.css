@@ -475,8 +475,6 @@ input[type='range'] { accent-color: var(--accent); width: 100%; }
   font-weight: 700;
 }
 .segmented button.active { color: var(--text); background: color-mix(in srgb, var(--accent) 30%, transparent); }
-.segmented.disabled { opacity: 0.4; }
-.segmented button:disabled { cursor: default; }
 
 /* ---------- wheel bar + menu ---------- */
 .wheel-bar { position: relative; display: flex; gap: 6px; align-items: center; padding: 10px 10px 0; }
@@ -641,22 +639,7 @@ input[type='range'] { accent-color: var(--accent); width: 100%; }
 .tile-wrap:hover .tile-remove { opacity: 1; }
 
 /* ---------- audio files ---------- */
-.audio-field .sub { font-size: 13px; color: var(--muted); font-weight: 500; }
-.file-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
-.file-list li { display: flex; align-items: center; gap: 6px; padding: 3px; border-radius: 10px; background: rgba(255, 255, 255, 0.04); }
-.file-list .icon-btn { width: 28px; height: 28px; font-size: 12px; }
-.file-list .playing { color: var(--accent); border-color: var(--accent); }
 .file-name { flex: 1; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ghost-btn {
-  border: 1px dashed color-mix(in srgb, var(--accent) 55%, transparent);
-  background: transparent;
-  color: var(--accent);
-  padding: 7px 10px;
-  border-radius: 10px;
-  font-size: 13px;
-  font-weight: 700;
-}
-.ghost-btn:hover { background: color-mix(in srgb, var(--accent) 12%, transparent); }
 
 /* ---------- toast ---------- */
 .toast {
