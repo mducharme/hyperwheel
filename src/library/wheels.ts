@@ -1,7 +1,9 @@
 // zip/deflate is only needed for export, import and share links: load it on demand
 const zip = () => import('fflate');
 import { db } from './db';
-import { getAsset, putAsset, type AssetKind } from './assets';
+import { getAsset, putAsset, MAX_SIZE, type AssetKind } from './assets';
+import { LIMITS, MIME_ALLOWED } from './limits';
+import { array, cleanText, isObject, sanitizeWheel } from './validate';
 
 export interface Entry {
   id: string;
@@ -154,30 +156,105 @@ export async function exportWheel(w: WheelDoc): Promise<Blob> {
   return new Blob([zipped as BlobPart], { type: 'application/zip' });
 }
 
-/** Import a .hyperwheel file as a new wheel (its files are added to the library). */
-export async function importWheel(file: Blob): Promise<WheelDoc> {
-  const { strFromU8, unzipSync } = await zip();
-  const files = unzipSync(new Uint8Array(await file.arrayBuffer()));
-  const raw = files['wheel.json'];
-  if (!raw) throw new Error('Not a HyperWheel file (wheel.json is missing).');
-  const manifest = JSON.parse(strFromU8(raw)) as Manifest;
-  if (manifest.format !== 'hyperwheel') throw new Error('Not a HyperWheel file.');
+export interface ImportReport {
+  wheel: WheelDoc;
+  /** Bundled files that were missing, too large or not a model/audio file. */
+  skipped: number;
+}
 
-  // asset ids are content hashes, so re-importing maps onto the same ids
-  const remap = new Map<string, string>();
-  for (const a of manifest.assets) {
-    const bytes = files[a.path];
-    if (!bytes) continue;
-    const stored = await putAsset(new Blob([bytes as BlobPart], { type: a.type }), a.kind, a.name);
-    remap.set(a.id, stored.id);
+const mb = (bytes: number) => `${Math.round(bytes / 1024 / 1024)} MB`;
+
+/**
+ * Import a .hyperwheel file as a new wheel (its files are added to the library).
+ *
+ * The file is untrusted (someone sent it), so: sizes are capped before and
+ * during unzipping (declared sizes are checked before anything is inflated,
+ * and fflate never inflates past a declared size), only expected entries are
+ * unpacked, every bundled file is validated on its own, and the wheel itself is
+ * rebuilt field by field through `sanitizeWheel` — nothing from the file is
+ * stored as-is (including its thumbnail, which could point anywhere).
+ */
+export async function importWheel(file: Blob): Promise<ImportReport> {
+  if (file.size > LIMITS.importFileBytes) {
+    throw new Error(`That file is ${mb(file.size)} — the limit is ${mb(LIMITS.importFileBytes)}.`);
   }
-  const w = normalize(manifest.wheel);
-  const wheel = wheels.duplicate(w, w.title);
-  wheel.entries = wheel.entries.map((e) => ({ ...e, character: e.character ? (remap.get(e.character) ?? e.character) : undefined }));
-  wheel.audio.spin = wheel.audio.spin.map((id) => remap.get(id) ?? id);
-  wheel.audio.wins = wheel.audio.wins.map((id) => remap.get(id) ?? id);
+  const { strFromU8, unzipSync } = await zip();
+
+  let declared = 0;
+  let assetEntries = 0;
+  let files: Record<string, Uint8Array>;
+  try {
+    files = unzipSync(new Uint8Array(await file.arrayBuffer()), {
+      filter: (f) => {
+        if (f.name === 'wheel.json') return f.originalSize <= LIMITS.manifestBytes;
+        if (!f.name.startsWith('assets/') || f.name.includes('..')) return false;
+        if (++assetEntries > LIMITS.importAssets) return false;
+        if (f.originalSize > Math.max(MAX_SIZE.model, MAX_SIZE.audio)) return false;
+        if (declared + f.originalSize > LIMITS.importTotalBytes) return false;
+        declared += f.originalSize;
+        return true;
+      },
+    });
+  } catch {
+    throw new Error('This file is damaged or is not a HyperWheel file.');
+  }
+
+  const raw = files['wheel.json'];
+  if (!raw) throw new Error('Not a HyperWheel file (wheel.json is missing or too large).');
+  let manifest: unknown;
+  try {
+    manifest = JSON.parse(strFromU8(raw));
+  } catch {
+    throw new Error('This HyperWheel file is damaged (its wheel.json is not valid).');
+  }
+  if (!isObject(manifest) || manifest.format !== 'hyperwheel') throw new Error('Not a HyperWheel file.');
+
+  // Store bundled files one by one; anything odd is skipped, not fatal.
+  // Ids are content hashes, so a file's claimed id is only used to find references to it.
+  const remap = new Map<string, string>();
+  let skipped = 0;
+  for (const a of array(manifest.assets).slice(0, LIMITS.importAssets)) {
+    if (!isObject(a)) {
+      skipped++;
+      continue;
+    }
+    const kind: AssetKind | null = a.kind === 'model' || a.kind === 'audio' ? a.kind : null;
+    const bytes = kind && typeof a.path === 'string' ? files[a.path] : undefined;
+    if (!kind || !bytes) {
+      skipped++;
+      continue;
+    }
+    const allowed: readonly string[] = MIME_ALLOWED[kind];
+    const type = typeof a.type === 'string' && allowed.includes(a.type) ? a.type : '';
+    const name = cleanText(a.name, LIMITS.nameLength) || (kind === 'model' ? 'model.glb' : 'audio');
+    try {
+      const stored = await putAsset(new Blob([bytes as BlobPart], { type }), kind, name);
+      if (stored.kind !== kind) throw new Error('kind mismatch');
+      if (typeof a.id === 'string') remap.set(a.id, stored.id);
+    } catch {
+      skipped++;
+    }
+  }
+
+  // point references at the stored files, then rebuild the wheel from validated fields only
+  const w = isObject(manifest.wheel) ? manifest.wheel : {};
+  const mapId = (id: unknown) => (typeof id === 'string' ? (remap.get(id) ?? id) : id);
+  const mapped = {
+    ...w,
+    entries: array(w.entries).map((e) => (isObject(e) ? { ...e, character: mapId(e.character) } : e)),
+    audio: isObject(w.audio)
+      ? { ...w.audio, spin: array(w.audio.spin).map(mapId), wins: array(w.audio.wins ?? (w.audio.win ? [w.audio.win] : [])).map(mapId) }
+      : w.audio,
+  };
+  const clean = sanitizeWheel(mapped, new Set(remap.values()));
+
+  const wheel = newWheel(clean.title, []);
+  wheel.entries = clean.entries.map((e) => ({ id: uid(), ...e }));
+  wheel.settings = { ...DEFAULT_SETTINGS, ...clean.settings };
+  wheel.audio = clean.audio;
+  wheel.results = clean.results;
   await wheels.save(wheel);
-  return wheel;
+  return { wheel, skipped };
 }
 
 // ------------------------------------------------------------------ share links

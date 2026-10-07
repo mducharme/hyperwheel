@@ -81,9 +81,9 @@ export class WheelMenu {
           const [file] = await pickFiles($<HTMLInputElement>('file-wheel'));
           if (!file) return;
           await session.save();
-          const w = await importWheel(file);
+          const { wheel: w, skipped } = await importWheel(file);
           session.open(w);
-          toast(`Imported “${w.title}”`);
+          toast(skipped ? `Imported “${w.title}” — ${skipped} bundled file${skipped > 1 ? 's were' : ' was'} skipped` : `Imported “${w.title}”`);
           break;
         }
         case 'share': {

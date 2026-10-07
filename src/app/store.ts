@@ -1,5 +1,8 @@
+import { LIMITS } from '../library/limits';
+
 const STORE_KEY = 'hyperwheel:v1';
-export const MAX_ENTRIES = 500;
+
+export const MAX_ENTRIES = LIMITS.entries;
 export const DEFAULT_NAMES = ['Ada', 'Grace', 'Linus', 'Margaret', 'Alan', 'Hedy', 'Tim', 'Katherine', 'Dennis', 'Barbara'];
 
 /** Device-wide preferences. Wheels themselves (entries, settings, files) live in IndexedDB. */
