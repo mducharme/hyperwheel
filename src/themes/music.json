@@ -134,5 +134,22 @@
       {"file": "win-4.mp3", "seconds": 5, "prompt": "Short primetime pop-EDM victory sting at 128 BPM, snare roll from the first beat into a massive synth chord drop and stop, instrumental only"},
       {"file": "win-5.mp3", "seconds": 5, "prompt": "Short cheerful prize-reveal jingle, xylophone and celesta flourish, organ swell and a bright final chord, instrumental only"}
     ]
+  },
+  "grandprix": {
+    "spin": [
+      {"file": "spin-1.mp3", "seconds": 20, "prompt": "High-octane racing rock at 150 BPM, chugging palm-muted electric guitars, driving bass, punchy rock drums, revving heroic guitar lead, motorsport broadcast energy, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-2.mp3", "seconds": 20, "prompt": "Fast drum and bass at 172 BPM, rolling reese bass, crisp breakbeats, rising synth stabs, adrenaline rush of a race in full flight, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-3.mp3", "seconds": 20, "prompt": "Surf-rock car chase at 160 BPM, twangy reverb guitar melody, galloping drums, walking bass, playful getaway excitement, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-4.mp3", "seconds": 20, "prompt": "Arcade racer synth-rock at 140 BPM, bright supersaw lead, pumping sidechained bass, four-on-the-floor drums with tom fills, neon speedway fun, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-5.mp3", "seconds": 20, "prompt": "Big-band speed swing at 190 BPM, blaring brass hits, walking upright bass, ride-cymbal drive, cheeky cartoon-race comedy, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-6.mp3", "seconds": 20, "prompt": "Funky motorsport groove at 118 BPM, slap bass, wah guitar, tight hi-hats and clavinet stabs, confident pit-lane strut, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"}
+    ],
+    "win": [
+      {"file": "win-1.mp3", "seconds": 4, "prompt": "Short triumphant rock-guitar victory riff ending on a big power chord with a cymbal crash, podium celebration, instrumental only"},
+      {"file": "win-2.mp3", "seconds": 4, "prompt": "Short brass fanfare rising to a bright major chord with timpani roll, chequered-flag victory, instrumental only"},
+      {"file": "win-3.mp3", "seconds": 4, "prompt": "Short synth-rock win sting: quick ascending arpeggio, punchy drum fill, final stab chord, arcade racing victory, instrumental only"},
+      {"file": "win-4.mp3", "seconds": 4, "prompt": "Short orchestral champion's flourish: strings run upward into a bold horn chord with cymbal swell, trophy moment, instrumental only"},
+      {"file": "win-5.mp3", "seconds": 4, "prompt": "Short funky horn-section victory hit with a slap-bass lick and drum fill, ending on a sharp stab, instrumental only"}
+    ]
   }
 }
