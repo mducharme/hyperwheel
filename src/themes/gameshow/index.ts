@@ -5,7 +5,6 @@ import {
   float,
   fract,
   fwidth,
-  instancedBufferAttribute,
   length,
   max,
   min,
@@ -28,69 +27,16 @@ import {
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { Theme, ThemeScene } from '../types';
 import { makeFloor, makeLights, makeStand, rgb } from '../shared';
-import { makeAtlas, shapes, type Sprite } from '../../fx/atlas';
 import { iridescent } from '../../fx/nodes';
-import type { FxDirector } from '../../fx/FxDirector';
 import { uSpeed, uWin } from '../../engine/globals';
 import { SCALES } from '../../audio/ChipSynth';
 import { meta, PALETTE } from './meta';
-
-const rand = (a: number, b: number) => a + Math.random() * (b - a);
-const inst = (data: Float32Array, size: number, type: string): any =>
-  instancedBufferAttribute(new THREE.InstancedBufferAttribute(data, size), type);
+import { rand, inst } from '../../fx/util';
+import { celebrations } from './celebrations';
 
 const WALL_Z = -13;
 const WALL_W = 26;
 const WALL_H = 13;
-
-// ------------------------------------------------------------------ sprites
-
-const balloon: Sprite = (ctx, r) => {
-  ctx.fillStyle = '#fff';
-  ctx.beginPath();
-  ctx.ellipse(0, -r * 0.2, r * 0.55, r * 0.68, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.moveTo(-r * 0.08, r * 0.48);
-  ctx.lineTo(r * 0.08, r * 0.48);
-  ctx.lineTo(0, r * 0.58);
-  ctx.closePath();
-  ctx.fill();
-  ctx.strokeStyle = 'rgba(255,255,255,0.7)';
-  ctx.lineWidth = r * 0.03;
-  ctx.beginPath();
-  ctx.moveTo(0, r * 0.58);
-  ctx.quadraticCurveTo(r * 0.12, r * 0.78, 0, r * 0.98);
-  ctx.stroke();
-  ctx.fillStyle = 'rgba(255,255,255,0.55)';
-  ctx.beginPath();
-  ctx.ellipse(-r * 0.2, -r * 0.45, r * 0.1, r * 0.17, -0.4, 0, Math.PI * 2);
-  ctx.fill();
-};
-
-const coin: Sprite = (ctx, r) => {
-  ctx.fillStyle = '#fff';
-  ctx.beginPath();
-  ctx.arc(0, 0, r * 0.82, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.strokeStyle = 'rgba(0,0,0,0.22)';
-  ctx.lineWidth = r * 0.1;
-  ctx.beginPath();
-  ctx.arc(0, 0, r * 0.62, 0, Math.PI * 2);
-  ctx.stroke();
-  shapes.star(5, 0.45, 'rgba(0,0,0,0.22)')(ctx, r * 0.42);
-};
-
-const atlas = () =>
-  makeAtlas([
-    shapes.strip(0.16), // ticker tape
-    shapes.strip(0.4), // confetti
-    shapes.star(5, 0.45),
-    balloon,
-    coin,
-    shapes.sparkle(),
-    shapes.glow(),
-  ]);
 
 // ------------------------------------------------------------------ studio
 
@@ -263,7 +209,7 @@ function makeAudience(uCheer: any) {
   return g;
 }
 
-interface ShowScene extends ThemeScene {
+export interface ShowScene extends ThemeScene {
   /** Marquee and LED wall go wild for a while. */
   jackpot(seconds: number): void;
   /** The audience cheers (bobbing + flashbulbs). */
@@ -395,118 +341,5 @@ export const gameshow: Theme<ShowScene> = {
     };
   },
 
-  celebrations: (world) => {
-    const sprites = atlas();
-    const metallic = ['#ffd23f', '#e8e8f4', '#ff3b5c', '#3b82ff', '#2ee59d'];
-    return [
-      {
-        name: 'Ticker-Tape Finale',
-        setup(fx) {
-          const tape = fx.particles({
-            count: 1200,
-            atlas: sprites,
-            cells: [0, 0, 1],
-            colors: metallic,
-            aspect: 0.5,
-            mirror: false,
-            emitters: [{ at: [0, 16, 0], box: [14, 0.5, 5], dir: [0, -1, 0], spread: 0.3, speed: [2, 5], delay: [0, 1.5] }],
-            size: [0.3, 0.55],
-            gravity: [0, -3.5, 0],
-            drag: 1.3,
-            life: [4.5, 6],
-            spin: 4,
-            wobble: 0.5,
-          });
-          return () => {
-            tape.fire();
-            world.converge(4);
-            world.cheer(3.5);
-            fx.sfx.applause(3.2);
-            fx.zoom(0.08, 2.5);
-          };
-        },
-      },
-      {
-        name: 'Confetti Cannons',
-        setup(fx) {
-          const cannons = fx.particles({
-            count: 1000,
-            atlas: sprites,
-            cells: [1, 1, 2],
-            colors: metallic,
-            emitters: [
-              { at: [-4.6, 0.4, 1.6], dir: [0.3, 1, 0.25], spread: 0.25, speed: [9, 16] },
-              { at: [4.6, 0.4, 1.6], dir: [-0.3, 1, 0.25], spread: 0.25, speed: [9, 16] },
-            ],
-            size: [0.16, 0.28],
-            gravity: [0, -6, 0],
-            drag: 1.3,
-            life: [3.5, 5],
-          });
-          return () => {
-            cannons.fire();
-            world.cheer(2.5);
-            fx.sfx.boom(0, 1.2);
-            fx.sfx.applause(2.4, 0.15);
-            fx.ripple(0.7);
-          };
-        },
-      },
-      {
-        name: 'Jackpot',
-        setup(fx) {
-          const coins = fx.particles({
-            count: 700,
-            atlas: sprites,
-            cells: [4],
-            colors: ['#ffd23f', '#ffcf2f', '#ffe68a'],
-            tint: 1,
-            mirror: false,
-            emitters: [{ at: [0, 15, 0.5], box: [9, 0.5, 3], dir: [0, -1, 0], spread: 0.2, speed: [3, 6], delay: [0, 1.2] }],
-            size: [0.3, 0.45],
-            gravity: [0, -9, 0],
-            drag: 0.8,
-            life: [3, 4],
-            spin: 6,
-          });
-          return () => {
-            world.jackpot(3.5);
-            coins.fire();
-            fx.flash('#ffd23f', 0.3, 0.6);
-            fx.stunt('boing');
-            for (let i = 0; i < 12; i++) fx.sfx.pop(i * 0.08, 1.4 + (i % 4) * 0.25);
-          };
-        },
-      },
-      {
-        name: 'Standing Ovation',
-        setup(fx: FxDirector) {
-          const balloons = fx.particles({
-            count: 160,
-            atlas: sprites,
-            cells: [3],
-            colors: PALETTE,
-            mode: 'face',
-            lit: false,
-            intensity: 1.15,
-            mirror: false,
-            emitters: [{ at: [0, -1, 2], box: [12, 0.5, 3], dir: [0, 1, 0], spread: 0.15, speed: [1, 3], delay: [0, 1.6] }],
-            size: [0.7, 1.1],
-            gravity: [0, 2.2, 0],
-            drag: 0.9,
-            life: [5, 6.5],
-            spin: 0.4,
-            wobble: 0.6,
-          });
-          return () => {
-            balloons.fire();
-            world.cheer(4.5);
-            world.converge(3);
-            fx.sfx.applause(4);
-            fx.orbit(0.35, 4);
-          };
-        },
-      },
-    ];
-  },
+  celebrations,
 };

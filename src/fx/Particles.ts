@@ -24,6 +24,7 @@ import {
   vec3,
 } from 'three/tsl';
 import type { Atlas } from './atlas';
+import { rand } from './util';
 
 type V3 = [number, number, number];
 
@@ -76,7 +77,6 @@ export interface ParticleOptions {
   mirror?: boolean;
 }
 
-const rand = (a: number, b: number) => a + Math.random() * (b - a);
 
 /**
  * Zero-CPU particles: every trajectory is a closed-form function of time

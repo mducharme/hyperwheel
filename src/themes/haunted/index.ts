@@ -3,23 +3,19 @@ import {
   abs,
   float,
   fog,
-  instancedBufferAttribute,
   length,
   max,
   mix,
   mx_fractal_noise_float,
   mx_noise_float,
-  positionGeometry,
   positionLocal,
   positionWorld,
   pow,
   rangeFogFactor,
-  rotate,
   screenSize,
   screenUV,
   sin,
   smoothstep,
-  step,
   texture,
   time,
   uniform,
@@ -30,140 +26,16 @@ import {
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { Theme, ThemeScene } from '../types';
 import { makeLights, makeStand, rgb } from '../shared';
-import { makeAtlas, shapes, type Sprite } from '../../fx/atlas';
-import { fresnel, starField } from '../../fx/nodes';
+import { starField } from '../../fx/nodes';
 import { Particles } from '../../fx/Particles';
-import type { FxDirector, FxItem } from '../../fx/FxDirector';
 import { uSpeed, uWin } from '../../engine/globals';
 import { SCALES } from '../../audio/ChipSynth';
 import { meta, PALETTE } from './meta';
+import { rand } from '../../fx/util';
+import { atlas } from './sprites';
+import { celebrations } from './celebrations';
 
 const NIGHT = '#241a36';
-const rand = (a: number, b: number) => a + Math.random() * (b - a);
-const inst = (data: Float32Array, size: number, type: string): any =>
-  instancedBufferAttribute(new THREE.InstancedBufferAttribute(data, size), type);
-
-// ------------------------------------------------------------------ sprites (original silhouettes)
-
-const bat: Sprite = (ctx, r) => {
-  ctx.fillStyle = '#241433';
-  ctx.strokeStyle = '#7a4fb0';
-  ctx.lineWidth = r * 0.05;
-  ctx.beginPath();
-  // body + scalloped wings
-  ctx.moveTo(0, -r * 0.25);
-  ctx.quadraticCurveTo(r * 0.35, -r * 0.55, r * 0.95, -r * 0.35);
-  ctx.quadraticCurveTo(r * 0.8, -r * 0.05, r * 0.85, r * 0.15);
-  ctx.quadraticCurveTo(r * 0.62, 0, r * 0.52, r * 0.18);
-  ctx.quadraticCurveTo(r * 0.38, r * 0.02, r * 0.22, r * 0.25);
-  ctx.quadraticCurveTo(r * 0.1, r * 0.1, 0, r * 0.35);
-  ctx.quadraticCurveTo(-r * 0.1, r * 0.1, -r * 0.22, r * 0.25);
-  ctx.quadraticCurveTo(-r * 0.38, r * 0.02, -r * 0.52, r * 0.18);
-  ctx.quadraticCurveTo(-r * 0.62, 0, -r * 0.85, r * 0.15);
-  ctx.quadraticCurveTo(-r * 0.8, -r * 0.05, -r * 0.95, -r * 0.35);
-  ctx.quadraticCurveTo(-r * 0.35, -r * 0.55, 0, -r * 0.25);
-  ctx.fill();
-  ctx.stroke();
-  // ears + glowing eyes
-  ctx.beginPath();
-  ctx.moveTo(-r * 0.12, -r * 0.2);
-  ctx.lineTo(-r * 0.08, -r * 0.42);
-  ctx.lineTo(-r * 0.02, -r * 0.22);
-  ctx.moveTo(r * 0.12, -r * 0.2);
-  ctx.lineTo(r * 0.08, -r * 0.42);
-  ctx.lineTo(r * 0.02, -r * 0.22);
-  ctx.fill();
-  ctx.fillStyle = '#ffd23f';
-  for (const s of [-1, 1]) {
-    ctx.beginPath();
-    ctx.arc(s * r * 0.06, -r * 0.12, r * 0.035, 0, Math.PI * 2);
-    ctx.fill();
-  }
-};
-
-const ghost: Sprite = (ctx, r) => {
-  ctx.fillStyle = '#f4f1ff';
-  ctx.beginPath();
-  ctx.moveTo(-r * 0.55, r * 0.75);
-  ctx.lineTo(-r * 0.55, -r * 0.2);
-  ctx.arc(0, -r * 0.2, r * 0.55, Math.PI, 0);
-  ctx.lineTo(r * 0.55, r * 0.75);
-  for (let i = 0; i < 4; i++) {
-    const x0 = r * 0.55 - (i * r * 1.1) / 4;
-    ctx.quadraticCurveTo(x0 - r * 0.14, r * 0.95, x0 - r * 0.275, r * 0.75);
-  }
-  ctx.fill();
-  ctx.fillStyle = '#20142e';
-  for (const s of [-1, 1]) {
-    ctx.beginPath();
-    ctx.ellipse(s * r * 0.2, -r * 0.2, r * 0.08, r * 0.12, 0, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  ctx.beginPath();
-  ctx.ellipse(0, r * 0.08, r * 0.1, r * 0.13, 0, 0, Math.PI * 2);
-  ctx.fill();
-};
-
-const candyCorn: Sprite = (ctx, r) => {
-  const tri = (y0: number, y1: number, color: string) => {
-    const w = (y: number) => ((y + r * 0.85) / (r * 1.7)) * r * 0.7;
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    ctx.moveTo(-w(y0), y0);
-    ctx.lineTo(w(y0), y0);
-    ctx.lineTo(w(y1), y1);
-    ctx.lineTo(-w(y1), y1);
-    ctx.closePath();
-    ctx.fill();
-  };
-  tri(-r * 0.85, -r * 0.25, '#fff6e0');
-  tri(-r * 0.25, r * 0.35, '#ff8a1f');
-  tri(r * 0.35, r * 0.85, '#ffd23f');
-};
-
-const miniPumpkin: Sprite = (ctx, r) => {
-  ctx.fillStyle = '#ff7a1a';
-  for (const dx of [-0.32, 0.32, 0]) {
-    ctx.beginPath();
-    ctx.ellipse(dx * r, r * 0.08, r * (dx ? 0.42 : 0.48), r * 0.62, 0, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  ctx.strokeStyle = 'rgba(120,40,0,0.45)';
-  ctx.lineWidth = r * 0.05;
-  for (const dx of [-0.2, 0.2]) {
-    ctx.beginPath();
-    ctx.ellipse(dx * r, r * 0.08, r * 0.12, r * 0.6, 0, 0, Math.PI * 2);
-    ctx.stroke();
-  }
-  ctx.fillStyle = '#3d7a2a';
-  ctx.fillRect(-r * 0.06, -r * 0.75, r * 0.12, r * 0.25);
-  ctx.fillStyle = '#ffd23f';
-  ctx.beginPath();
-  ctx.moveTo(-r * 0.3, -r * 0.05);
-  ctx.lineTo(-r * 0.15, -r * 0.2);
-  ctx.lineTo(-r * 0.05, -r * 0.05);
-  ctx.moveTo(r * 0.3, -r * 0.05);
-  ctx.lineTo(r * 0.15, -r * 0.2);
-  ctx.lineTo(r * 0.05, -r * 0.05);
-  ctx.fill();
-};
-
-const wrapped: Sprite = (ctx, r) => {
-  ctx.fillStyle = '#fff';
-  for (const s of [-1, 1]) {
-    ctx.beginPath();
-    ctx.moveTo(s * r * 0.4, 0);
-    ctx.lineTo(s * r * 0.95, -r * 0.4);
-    ctx.lineTo(s * r * 0.95, r * 0.4);
-    ctx.closePath();
-    ctx.fill();
-  }
-  ctx.beginPath();
-  ctx.ellipse(0, 0, r * 0.5, r * 0.36, 0, 0, Math.PI * 2);
-  ctx.fill();
-};
-
-const atlas = () => makeAtlas([bat, ghost, candyCorn, miniPumpkin, wrapped, shapes.sparkle(), shapes.glow()]);
 
 // ------------------------------------------------------------------ world
 
@@ -364,82 +236,7 @@ function makePumpkins(uGlow: any) {
   return g;
 }
 
-// ------------------------------------------------------------------ ghost parade
-
-/** Sheet ghosts spiralling up around the wheel; orbit and hem flutter run on the GPU. */
-class GhostParade implements FxItem {
-  readonly object: THREE.InstancedMesh;
-  private uTime = uniform(0);
-  private uStart = uniform(-1e4);
-  static DURATION = 6.5;
-
-  constructor(center: THREE.Vector3, count = 22) {
-    // dome head flaring into a sheet
-    const profile: THREE.Vector2[] = [];
-    for (let i = 0; i <= 10; i++) {
-      const a = (i / 10) * (Math.PI / 2);
-      profile.push(new THREE.Vector2(Math.sin(a) * 0.5, 0.55 + Math.cos(a) * 0.5));
-    }
-    profile.reverse();
-    profile.push(new THREE.Vector2(0.48, 0.15), new THREE.Vector2(0.52, -0.25), new THREE.Vector2(0.62, -0.62));
-    const geo = new THREE.LatheGeometry(profile, 40);
-
-    const orbit = new Float32Array(count * 4); // radius, phase, speed, height offset
-    for (let i = 0; i < count; i++) orbit.set([rand(4.6, 6.6), rand(0, Math.PI * 2), rand(0.7, 1.15), rand(-3.5, 1)], i * 4);
-    const aOrbit = inst(orbit, 4, 'vec4');
-
-    const mat = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide });
-    const t = this.uTime.sub(this.uStart);
-    const D = GhostParade.DURATION;
-    const alive = t.greaterThan(0).and(t.lessThan(D)).select(float(1), float(0));
-    const env = smoothstep(0, 0.8, t).mul(float(1).sub(smoothstep(D - 1, D, t))).mul(alive);
-    const lp = positionLocal;
-    // fluttering hem
-    const hem = float(1).sub(smoothstep(-0.6, 0.2, lp.y));
-    const ang = lp.z.atan(lp.x);
-    const wave = sin(ang.mul(7).add(this.uTime.mul(6)).add(aOrbit.y.mul(4)));
-    const flutter = wave.mul(0.07).mul(hem);
-    // scalloped, rippling hem
-    const scallop = wave.mul(0.08).mul(float(1).sub(smoothstep(-0.62, -0.45, lp.y)));
-    const local = vec3(lp.x.mul(float(1).add(flutter)), lp.y.add(scallop), lp.z.mul(float(1).add(flutter))).mul(env.mul(0.62));
-    const a = aOrbit.y.add(aOrbit.z.mul(t));
-    // face outward from the wheel, so the ones passing in front look at the camera
-    const turned = rotate(local, vec3(0, a.add(Math.PI / 2), 0));
-    const rise = t.mul(0.75).add(aOrbit.w);
-    const bob = sin(t.mul(3).add(aOrbit.y)).mul(0.2);
-    mat.positionNode = turned.add(vec3(a.cos().mul(aOrbit.x), rise.add(bob), a.sin().mul(aOrbit.x).negate()).add(vec3(center.x, center.y, center.z)));
-
-    // two dark eyes and an "o" mouth on the front of the head
-    // the face is painted in the ghost's own shape coordinates: positionLocal now
-    // means the moved (orbiting) position, so use the untouched geometry instead
-    const gp = positionGeometry;
-    const eye = (x: number) => step(length(vec2(gp.x.sub(x), gp.y.sub(0.6)).mul(vec2(1, 0.7))), float(0.075));
-    const front = step(0.25, gp.z);
-    const mouth = step(length(vec2(gp.x, gp.y.sub(0.38)).mul(vec2(1, 0.8))), float(0.065));
-    const face = max(max(eye(-0.16), eye(0.16)), mouth).mul(front);
-    // soft glow, kept under the bloom threshold so ghosts stay readable
-    const glow = fresnel(1.5).mul(0.35).add(0.55);
-    mat.colorNode = mix(rgb('#e6e8ff').mul(glow), rgb('#1a1026'), face);
-    mat.opacityNode = mix(float(0.72), float(1), face).mul(env);
-
-    this.object = new THREE.InstancedMesh(geo, mat, count);
-    this.object.frustumCulled = false;
-    this.object.renderOrder = 2;
-  }
-
-  fire() {
-    this.uStart.value = this.uTime.value;
-  }
-  update(time: number) {
-    this.uTime.value = time;
-  }
-  dispose() {
-    this.object.geometry.dispose();
-    (this.object.material as THREE.Material).dispose();
-  }
-}
-
-interface HauntedScene extends ThemeScene {
+export interface HauntedScene extends ThemeScene {
   /** Pumpkins flare up. */
   surge(amount: number): void;
   /** Sky and moonlight flash. */
@@ -572,109 +369,5 @@ export const haunted: Theme<HauntedScene> = {
     };
   },
 
-  celebrations: (world) => {
-    const sprites = atlas();
-    return [
-      {
-        name: 'Bat Swarm',
-        setup(fx) {
-          const bats = fx.particles({
-            count: 240,
-            atlas: sprites,
-            cells: [0],
-            tint: 0,
-            mode: 'face',
-            lit: false,
-            intensity: 1.2,
-            emitters: [{ at: [0, 3.9, -1.5], box: [2.5, 2.5, 0.5], dir: [0, 0.6, 1], spread: 1.2, speed: [6, 12] }],
-            size: [0.45, 0.8],
-            gravity: [0, 1.5, 0],
-            drag: 1.1,
-            life: [3, 4.2],
-            spin: 2,
-            wobble: 0.5,
-          });
-          return () => {
-            bats.fire();
-            fx.shake(0.5, 0.8);
-            fx.sfx.whoosh();
-            fx.after(0.25, () => fx.sfx.whoosh());
-          };
-        },
-      },
-      {
-        name: 'Ghost Parade',
-        setup(fx) {
-          const ghosts = fx.add(new GhostParade(fx.center));
-          return () => {
-            ghosts.fire();
-            fx.orbit(0.4, GhostParade.DURATION);
-            fx.flash('#c9c2ff', 0.15, 1);
-            fx.sfx.whoosh();
-          };
-        },
-      },
-      {
-        name: 'Trick or Treat',
-        setup(fx) {
-          const treats = fx.particles({
-            count: 600,
-            atlas: sprites,
-            cells: [2, 2, 3, 4],
-            colors: ['#ff8a1f', '#9b5cff', '#7dff6a', '#ffd23f', '#ffffff'],
-            tint: 0.5,
-            emitters: [
-              { at: [-4.6, 0.4, 1.6], dir: [0.35, 1, 0.25], spread: 0.3, speed: [8, 14] },
-              { at: [4.6, 0.4, 1.6], dir: [-0.35, 1, 0.25], spread: 0.3, speed: [8, 14] },
-            ],
-            size: [0.24, 0.38],
-            gravity: [0, -7, 0],
-            drag: 1.1,
-          });
-          return () => {
-            treats.fire();
-            world.surge(1);
-            fx.stunt('boing');
-            fx.sfx.boom(0, 1.3);
-            for (let i = 0; i < 5; i++) fx.sfx.pop(0.2 + i * 0.12, 0.7 + i * 0.1);
-          };
-        },
-      },
-      {
-        name: 'Thunderstrike',
-        setup(fx) {
-          const wave = fx.shockwave({ color: '#9b5cff', radius: 16, width: 0.05, duration: 1.4 });
-          const sparks = fx.particles({
-            count: 500,
-            atlas: sprites,
-            cells: [5, 6],
-            colors: ['#c9c2ff', '#7dff6a', '#ffffff'],
-            blend: 'additive',
-            intensity: 2.2,
-            mode: 'stretch',
-            stretch: 0.2,
-            emitters: [{ at: [0, 3.9, 0.6], spread: 2, speed: [4, 10] }],
-            size: [0.1, 0.18],
-            gravity: [0, -2, 0],
-            drag: 1.8,
-            life: [1.2, 2],
-          });
-          return () => {
-            world.lightning();
-            fx.flash('#cfd8ff', 0.7, 0.25);
-            fx.after(0.3, () => fx.flash('#cfd8ff', 0.55, 0.5));
-            fx.after(0.3, () => {
-              sparks.fire();
-              wave.fire(new THREE.Vector3(0, 0.08, -0.6), 'floor');
-              fx.shake(1.6, 0.9);
-              fx.stunt('shake');
-              fx.ripple(1, 1.2);
-            });
-            fx.sfx.boom(0.35, 0.5);
-            fx.sfx.boom(0.6, 0.4);
-          };
-        },
-      },
-    ];
-  },
+  celebrations,
 };
