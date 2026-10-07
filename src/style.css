@@ -803,3 +803,7 @@ body.ready .boot { opacity: 0; }
 /* renderer + FPS badges only in debug mode (Settings → Debug info, or ?debug) */
 body:not(.debug) #backend,
 body:not(.debug) #fps { display: none; }
+
+/* ---------- scene gallery ---------- */
+.scene-list.gallery { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); padding: 4px 18px 18px; overflow-y: auto; }
+.scenes button.more { font-size: 15px; letter-spacing: 1px; color: var(--muted); }

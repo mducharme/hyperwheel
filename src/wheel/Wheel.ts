@@ -72,21 +72,23 @@ export interface WheelStyle {
   /** Chunky multicoloured string lights instead of the marquee bulbs. */
   stringLights?: string[];
   /** Pins on the wheel face: metal pins (default) or Christmas baubles. */
-  pins?: 'baubles' | 'skulls' | 'gumdrops' | 'pearls' | 'stars';
+  pins?: 'baubles' | 'skulls' | 'gumdrops' | 'pearls' | 'stars' | 'pebbles';
   /** The pointer: the glossy teardrop (default) or an icicle. */
-  pointer?: 'icicle' | 'scythe' | 'candycane' | 'anchor' | 'comet';
+  pointer?: 'icicle' | 'scythe' | 'candycane' | 'anchor' | 'comet' | 'horseshoe' | 'leaf' | 'ankh';
   /** A frosted donut instead of the chrome rim. */
   donut?: { frosting: string; sprinkles: string[] };
-  /** Rivets around the rim, ship's-porthole style (pair with brass rim colours). */
-  rivets?: boolean;
+  /** Rivets or bolts around the rim, in this colour (brass for a porthole, iron for a wagon wheel). */
+  rivets?: string;
   /** Glowing bubbles instead of the marquee bulbs. */
   bubbles?: boolean;
   /** The rim as a ring of swirling plasma (hot and cool colours) instead of chrome. */
   plasmaRim?: { hot: string; cool: string };
+  /** The rim as a glowing neon tube, fading between two colours, instead of chrome. */
+  neonRim?: { a: string; b: string };
   /** Flickering candles instead of the marquee bulbs. */
   candles?: boolean;
-  /** The rim as twisted, matte dark wood instead of chrome. */
-  rimFinish?: 'gnarled';
+  /** A matte finish instead of chrome: plain wood, or twisted dark wood. */
+  rimFinish?: 'wood' | 'gnarled' | 'bamboo';
 }
 
 /** Name color on light segments. */
@@ -157,6 +159,13 @@ export class Wheel {
     m.colorNode = vec3(0.93, 0.91, 0.88).add(iridescent(fres.mul(1.5)).mul(0.18));
     return m;
   })();
+  /** Smooth, flat river pebbles (colour per instance). */
+  private pebbleGeo = new THREE.SphereGeometry(0.09, 14, 10).scale(1, 0.72, 0.5);
+  private pebbleMat = (() => {
+    const m = new THREE.MeshStandardNodeMaterial({ roughness: 0.55 });
+    m.colorNode = vec3(mx_noise_float(positionGeometry.mul(40)).mul(0.08).add(0.95)); // faint speckle, times the instance colour
+    return m;
+  })();
   /** Little glowing star pins. */
   private starGeo = new THREE.OctahedronGeometry(0.075, 0).scale(1, 1, 0.45);
   private starMat = (() => {
@@ -174,6 +183,7 @@ export class Wheel {
       gumdrops: { geo: this.gumdropGeo, mat: this.gumdropMat, z: 0.02, colors: ['#ff5d8f', '#5ee6c8', '#ffd166', '#b388ff', '#ff9e5e'] },
       pearls: { geo: this.pearlGeo, mat: this.pearlMat, z: 0.07 },
       stars: { geo: this.starGeo, mat: this.starMat, z: 0.07 },
+      pebbles: { geo: this.pebbleGeo, mat: this.pebbleMat, z: 0.05, colors: ['#8d8a84', '#a69c8c', '#6f6b66', '#b8b0a2', '#7c746a'] },
     };
   }
   private textCanvas = document.createElement('canvas');
@@ -198,6 +208,7 @@ export class Wheel {
   private readonly uTireColor = col();
   private readonly uBerry = col();
   private readonly uGnarl = uniform(0);
+  private readonly uBamboo = uniform(0);
   /** Base brightness of the rim: high for chrome, low for wood. */
   private readonly uRimLift = uniform(0.35);
   private textTex: THREE.CanvasTexture;
@@ -243,11 +254,12 @@ export class Wheel {
     this.applyPointer(style.pointer);
     this.applyCandles(!!style.candles);
     this.decorate('donut', style.donut && JSON.stringify(style.donut), () => this.makeDonut(style.donut!), this.spinner);
-    this.decorate('rivets', style.rivets ? 'on' : undefined, () => this.makeRivets(), this.spinner);
+    this.decorate('rivets', style.rivets, () => this.makeRivets(style.rivets!), this.spinner);
     this.decorate('bubbles', style.bubbles ? 'on' : undefined, () => this.makeBubbles(), this.root);
     this.decorate('plasmaRim', style.plasmaRim && JSON.stringify(style.plasmaRim), () => this.makePlasmaRim(style.plasmaRim!), this.spinner);
+    this.decorate('neonRim', style.neonRim && JSON.stringify(style.neonRim), () => this.makeNeonRim(style.neonRim!), this.spinner);
     this.applyRimFinish(style.rimFinish);
-    this.chromeRim.visible = !style.tire && !style.wreath && !style.donut && !style.plasmaRim;
+    this.chromeRim.visible = !style.tire && !style.wreath && !style.donut && !style.plasmaRim && !style.neonRim;
     this.marquee.visible = !style.helm && !style.tire && !style.stringLights && !style.candles && !style.bubbles;
     this.setEntries(this.names);
   }
@@ -456,8 +468,15 @@ export class Wheel {
     const rimCol = mix(twoTone, holo, this.uHolo);
     // gnarled finish: knotty bumps pushed out along the normal, darker in the grooves
     const knots = mx_noise_float(positionLocal.mul(vec3(3.2, 3.2, 9))).mul(0.5).add(0.5);
-    mat.positionNode = positionLocal.add(normalLocal.mul(knots.sub(0.5).mul(0.11).mul(this.uGnarl)));
-    mat.colorNode = rimCol.mul(float(0.9).sub(this.uRimLift)).add(this.uRimLift).mul(mix(float(1), knots.mul(0.6).add(0.55), this.uGnarl));
+    // bamboo finish: a node (a darker, slightly swollen joint) every few degrees around the ring
+    const seg = fract(ang.mul(28));
+    const joint = smoothstep(0.06, 0.0, seg.min(float(1).sub(seg)));
+    mat.positionNode = positionLocal.add(normalLocal.mul(knots.sub(0.5).mul(0.11).mul(this.uGnarl).add(joint.mul(0.035).mul(this.uBamboo))));
+    mat.colorNode = rimCol
+      .mul(float(0.9).sub(this.uRimLift))
+      .add(this.uRimLift)
+      .mul(mix(float(1), knots.mul(0.6).add(0.55), this.uGnarl))
+      .mul(mix(float(1), float(0.55), joint.mul(this.uBamboo)));
     mat.emissiveNode = rimCol.mul(fres.mul(0.9).add(this.uSpeed.mul(0.02)).add(this.uWin.mul(0.8)));
     this.chromeRim = new THREE.Mesh(new THREE.TorusGeometry(RIM_R, 0.15, 32, 256), mat);
     this.spinner.add(this.chromeRim);
@@ -750,9 +769,9 @@ export class Wheel {
   }
 
   /** Brass rivets around the rim, like a ship's porthole. */
-  private makeRivets() {
+  private makeRivets(color: string) {
     const count = 32;
-    const rivets = new THREE.InstancedMesh(new THREE.SphereGeometry(0.05, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2).rotateX(Math.PI / 2), new THREE.MeshStandardNodeMaterial({ color: '#c9a25a', metalness: 0.6, roughness: 0.3 }), count);
+    const rivets = new THREE.InstancedMesh(new THREE.SphereGeometry(0.05, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2).rotateX(Math.PI / 2), new THREE.MeshStandardNodeMaterial({ color, metalness: 0.6, roughness: 0.35 }), count);
     const m = new THREE.Matrix4();
     for (let i = 0; i < count; i++) {
       const a = ((i + 0.5) / count) * Math.PI * 2;
@@ -787,6 +806,26 @@ export class Wheel {
     return bubbles;
   }
 
+  /** A neon tube around the wheel: a glowing glass core in a dark housing, humming faintly. */
+  private makeNeonRim(n: NonNullable<WheelStyle['neonRim']>) {
+    const g = new THREE.Group();
+    const housing = new THREE.Mesh(new THREE.TorusGeometry(RIM_R, 0.15, 16, 200), new THREE.MeshStandardNodeMaterial({ color: '#15121c', metalness: 0.7, roughness: 0.35 }));
+    housing.position.z = -0.04;
+    g.add(housing);
+    const a = new THREE.Color(n.a);
+    const b = new THREE.Color(n.b);
+    const ang = atan(positionLocal.y, positionLocal.x);
+    // the colour drifts around the tube; a faint mains hum, brighter while spinning and on a win
+    const blend = sin(ang.mul(2).add(time.mul(0.6))).mul(0.5).add(0.5);
+    const hum = sin(time.mul(120)).mul(0.03).add(sin(time.mul(3.1)).mul(0.04)).add(1);
+    const glow = new THREE.MeshBasicNodeMaterial();
+    glow.colorNode = mix(vec3(a.r, a.g, a.b), vec3(b.r, b.g, b.b), blend).mul(hum).mul(float(2.2).add(this.uSpeed.mul(0.06)).add(this.uWin.mul(2)));
+    const tube = new THREE.Mesh(new THREE.TorusGeometry(RIM_R, 0.075, 12, 220), glow);
+    tube.position.z = 0.08;
+    g.add(tube);
+    return g;
+  }
+
   /** The rim as a ring of swirling plasma, like an accretion disk: white-hot to orange, brighter on one side. */
   private makePlasmaRim(p: NonNullable<WheelStyle['plasmaRim']>) {
     const hot = new THREE.Color(p.hot);
@@ -808,13 +847,14 @@ export class Wheel {
     return ring;
   }
 
-  /** Chrome (default) or matte: wood for a helm, knotted dark wood when gnarled. */
+  /** Chrome (default) or matte: wood for a helm or a wagon wheel, knotted dark wood when gnarled. */
   private applyRimFinish(finish: WheelStyle['rimFinish']) {
-    const matte = !!this.style.helm || finish === 'gnarled';
+    const matte = !!this.style.helm || !!finish;
     this.rimMat.metalness = matte ? 0.1 : 0.95;
     this.rimMat.roughness = matte ? 0.6 : 0.16;
     this.uRimLift.value = matte ? 0.04 : 0.35;
     this.uGnarl.value = finish === 'gnarled' ? 1 : 0;
+    this.uBamboo.value = finish === 'bamboo' ? 1 : 0;
   }
 
   /** A ring of flickering candles in place of the marquee bulbs (they stay upright). */
@@ -896,7 +936,7 @@ export class Wheel {
   private applyPointer(kind: WheelStyle['pointer']) {
     for (const o of this.flapperDefault) o.visible = !kind;
     if (kind && !this.pointers.has(kind)) {
-      const shape = { icicle: () => this.makeIcicle(), scythe: () => this.makeScythe(), candycane: () => this.makeCandyCane(), anchor: () => this.makeAnchor(), comet: () => this.makeComet() }[kind]();
+      const shape = { icicle: () => this.makeIcicle(), scythe: () => this.makeScythe(), candycane: () => this.makeCandyCane(), anchor: () => this.makeAnchor(), comet: () => this.makeComet(), horseshoe: () => this.makeHorseshoe(), leaf: () => this.makeLeaf(), ankh: () => this.makeAnkh() }[kind]();
       this.pointers.set(kind, shape);
       this.flapper.add(shape);
     }
@@ -956,6 +996,59 @@ export class Wheel {
       g.add(fluke);
     }
     g.add(new THREE.Mesh(new THREE.ConeGeometry(0.045, 0.1, 6).rotateZ(Math.PI).translate(0, -0.74, 0), iron)); // the crown's point
+    return g;
+  }
+
+  /** A golden ankh: the loop at the pivot, the arms, and the stem pointing down at the pins. */
+  private makeAnkh() {
+    const gold = new THREE.MeshStandardNodeMaterial({ color: '#e0b04a', metalness: 0.6, roughness: 0.3 });
+    const fres = pow(float(1).sub(abs(dot(normalView, positionViewDirection))), 2.5);
+    gold.emissiveNode = vec3(1, 0.75, 0.3).mul(fres.mul(0.5).add(this.uWin.mul(0.8)));
+    const geo = mergeGeometries([
+      new THREE.TorusGeometry(0.13, 0.045, 10, 24).scale(0.85, 1.2, 1).translate(0, 0.08, 0),
+      new THREE.BoxGeometry(0.46, 0.085, 0.07).translate(0, -0.12, 0),
+      new THREE.CylinderGeometry(0.045, 0.035, 0.6, 10).translate(0, -0.44, 0),
+      new THREE.ConeGeometry(0.035, 0.08, 10).rotateZ(Math.PI).translate(0, -0.78, 0),
+    ])!;
+    return new THREE.Mesh(geo, gold);
+  }
+
+  /** A green leaf hanging from its stem, its tip pointing at the pins. */
+  private makeLeaf() {
+    const outline = new THREE.Shape();
+    outline.moveTo(0, 0.02);
+    outline.bezierCurveTo(0.26, -0.08, 0.24, -0.5, 0, -0.76);
+    outline.bezierCurveTo(-0.24, -0.5, -0.26, -0.08, 0, 0.02);
+    const geo = new THREE.ExtrudeGeometry(outline, { depth: 0.02, bevelEnabled: true, bevelThickness: 0.01, bevelSize: 0.01, bevelSegments: 2, curveSegments: 24 }).translate(0, 0, -0.02);
+    const mat = new THREE.MeshStandardNodeMaterial({ roughness: 0.5, side: THREE.DoubleSide });
+    const p = positionGeometry;
+    // midrib and side veins, lighter toward the tip
+    const midrib = smoothstep(0.012, 0.0, abs(p.x));
+    const veins = smoothstep(0.85, 1, sin(p.y.mul(38).add(abs(p.x).mul(30)))).mul(0.5);
+    mat.colorNode = mix(vec3(0.24, 0.5, 0.2), vec3(0.45, 0.7, 0.3), smoothstep(0, -0.7, p.y)).add(vec3(midrib.max(veins).mul(0.12)));
+    const g = new THREE.Group();
+    g.add(new THREE.Mesh(geo, mat));
+    g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.02, 0.24, 6).translate(0, 0.13, 0), new THREE.MeshStandardNodeMaterial({ color: '#4a6a2e', roughness: 0.7 })));
+    return g;
+  }
+
+  /** A lucky horseshoe, open end up, hanging from a nail; its curve points at the pins. */
+  private makeHorseshoe() {
+    const g = new THREE.Group();
+    const iron = new THREE.MeshStandardNodeMaterial({ color: '#6f6a64', metalness: 0.55, roughness: 0.45 });
+    const shoe = new THREE.Mesh(new THREE.TorusGeometry(0.24, 0.055, 10, 32, Math.PI * 1.45).rotateZ(Math.PI * 0.775).scale(1, 1.15, 0.6).translate(0, -0.42, 0), iron);
+    g.add(shoe);
+    // nail holes along the shoe
+    const holeMat = new THREE.MeshStandardNodeMaterial({ color: '#2a2622', roughness: 0.8 });
+    for (let i = 0; i < 6; i++) {
+      const a = Math.PI * 0.775 + 0.35 + (i / 5) * (Math.PI * 1.45 - 0.7); // the arc runs around the bottom; the gap is at the top
+      const hole = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.02, 6).rotateX(Math.PI / 2), holeMat);
+      hole.position.set(Math.cos(a) * 0.24, -0.42 + Math.sin(a) * 0.24 * 1.15, 0.035);
+      g.add(hole);
+    }
+    // hung from a nail by a strip of leather
+    g.add(new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.36, 0.02).translate(0, -0.02, 0), new THREE.MeshStandardNodeMaterial({ color: '#6b4226', roughness: 0.8 })));
+    g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.08, 8).rotateX(Math.PI / 2).translate(0, 0.16, 0.02), iron));
     return g;
   }
 

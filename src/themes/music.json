@@ -202,5 +202,73 @@
       {"file": "win-4.mp3", "seconds": 4, "prompt": "Short cartoon slide-whistle and xylophone sting ending on a cheerful brass stab, comic win, instrumental only"},
       {"file": "win-5.mp3", "seconds": 4, "prompt": "Short epic choir 'ah' swell into a big orchestral chord with booming drums, legendary moment, instrumental only"}
     ]
+  },
+  "west": {
+    "spin": [
+      {"file": "spin-1.mp3", "seconds": 20, "prompt": "Galloping spaghetti-western showdown at 128 BPM, twangy reverb electric guitar melody, clip-clop percussion, whip cracks, whistled hook, heroic and cheeky, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-2.mp3", "seconds": 20, "prompt": "Boot-stomping country hoedown at 140 BPM, fiddle and banjo, upright bass, brushed snare, rowdy barn-dance fun, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-3.mp3", "seconds": 20, "prompt": "Saloon ragtime at 120 BPM, honky-tonk upright piano melody, tuba bass, washboard and spoons, playful bar-room charm, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-4.mp3", "seconds": 20, "prompt": "Desert cowboy trot at 112 BPM, harmonica melody, acoustic guitar strums, galloping coconut-shell hooves, sunny open-range adventure, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-5.mp3", "seconds": 20, "prompt": "Western surf-rock chase at 150 BPM, twangy baritone guitar, driving tom drums, trumpet stabs, high-noon tension, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-6.mp3", "seconds": 20, "prompt": "Bluegrass breakdown at 160 BPM, rapid banjo rolls, mandolin and fiddle trading licks, slap bass, joyful hurry, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"}
+    ],
+    "win": [
+      {"file": "win-1.mp3", "seconds": 4, "prompt": "Short trumpet and twang-guitar western fanfare ending on a bold major chord and a whip crack, high-noon victory, instrumental only"},
+      {"file": "win-2.mp3", "seconds": 4, "prompt": "Short honky-tonk piano glissando into a bright chord with a yee-haw-style fiddle flourish, saloon win, instrumental only"},
+      {"file": "win-3.mp3", "seconds": 4, "prompt": "Short harmonica and banjo victory lick ending on a happy chord and a stomp, instrumental only"},
+      {"file": "win-4.mp3", "seconds": 4, "prompt": "Short orchestral western sting: galloping strings into a big horn chord with timpani, sunset hero, instrumental only"},
+      {"file": "win-5.mp3", "seconds": 4, "prompt": "Short cheeky slide-whistle and banjo riff ending on a twangy final chord, comic cowboy win, instrumental only"}
+    ]
+  },
+  "zen": {
+    "spin": [
+      {"file": "spin-1.mp3", "seconds": 20, "prompt": "Peaceful yet lively Japanese-inspired groove at 96 BPM, plucked koto melody, shakuhachi flute, soft taiko and wood blocks, cherry-blossom garden, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-2.mp3", "seconds": 20, "prompt": "Lo-fi zen chillhop at 88 BPM, warm koto and Rhodes chords, dusty brushed drums, gentle vinyl crackle, calm focus, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-3.mp3", "seconds": 20, "prompt": "Bright shamisen and taiko festival rhythm at 118 BPM, energetic plucks, festival flute, handclaps, joyful matsuri, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-4.mp3", "seconds": 20, "prompt": "Ambient garden at 80 BPM, wind chimes, soft marimba ostinato, deep frame drum pulse, airy bamboo flute, tranquil motion, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-5.mp3", "seconds": 20, "prompt": "Elegant pentatonic piano and koto duet at 100 BPM, light percussion, flowing water feel, graceful and curious, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-6.mp3", "seconds": 20, "prompt": "Upbeat taiko drum ensemble at 126 BPM, booming drums and shouts-free rhythm, bright flute melody, spirited celebration, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"}
+    ],
+    "win": [
+      {"file": "win-1.mp3", "seconds": 4, "prompt": "Short gentle temple bell and koto flourish rising to a calm bright chord, serene victory, instrumental only"},
+      {"file": "win-2.mp3", "seconds": 4, "prompt": "Short taiko roll into a bright shakuhachi phrase and a soft gong, honourable win, instrumental only"},
+      {"file": "win-3.mp3", "seconds": 4, "prompt": "Short wind-chime cascade over a warm pad chord, peaceful reward, instrumental only"},
+      {"file": "win-4.mp3", "seconds": 4, "prompt": "Short shamisen and flute victory lick ending on a cheerful pentatonic chord, festival win, instrumental only"},
+      {"file": "win-5.mp3", "seconds": 4, "prompt": "Short deep gong strike blooming into a shimmering koto glissando, enlightenment moment, instrumental only"}
+    ]
+  },
+  "neotokyo": {
+    "spin": [
+      {"file": "spin-1.mp3", "seconds": 20, "prompt": "Cyberpunk synthwave at 124 BPM, pulsing analog bass, gated snares, glittering arpeggios, rain-soaked neon city night drive, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-2.mp3", "seconds": 20, "prompt": "J-pop city-pop groove at 118 BPM, funky slap bass, bright synth brass, electric piano chords, glossy night-life fun, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-3.mp3", "seconds": 20, "prompt": "Dark electro at 128 BPM, distorted sawtooth bass, crisp electronic drums, glitchy vocal-free chops, futuristic chase, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-4.mp3", "seconds": 20, "prompt": "Future bass at 140 BPM half-time feel, lush supersaw chords, sparkling plucks, punchy kicks, neon skyline euphoria, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-5.mp3", "seconds": 20, "prompt": "Lo-fi cyberpunk hip-hop at 92 BPM, rainy vinyl texture, deep 808 bass, mellow synth lead, late-night ramen stand, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-6.mp3", "seconds": 20, "prompt": "Drum and bass at 172 BPM, rolling reese bass, fast breakbeats, shimmering pads, flying-car rush through the city, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"}
+    ],
+    "win": [
+      {"file": "win-1.mp3", "seconds": 4, "prompt": "Short glitchy synth victory sting: rising arpeggio into a bright supersaw chord with a stutter, instrumental only"},
+      {"file": "win-2.mp3", "seconds": 4, "prompt": "Short city-pop brass and synth fanfare ending on a glossy major chord, instrumental only"},
+      {"file": "win-3.mp3", "seconds": 4, "prompt": "Short arcade power-up chime cascading into a punchy electronic chord hit, instrumental only"},
+      {"file": "win-4.mp3", "seconds": 4, "prompt": "Short cinematic cyberpunk swell: deep bass drop into a soaring synth chord, instrumental only"},
+      {"file": "win-5.mp3", "seconds": 4, "prompt": "Short neon sparkle: bell-like synth flourish into a bright chord and a reverse cymbal, instrumental only"}
+    ]
+  },
+  "pharaoh": {
+    "spin": [
+      {"file": "spin-1.mp3", "seconds": 20, "prompt": "Ancient Egyptian adventure at 112 BPM, oud and ney flute melody in Phrygian dominant, darbuka and riq percussion, deep drones, torchlit tomb exploration, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-2.mp3", "seconds": 20, "prompt": "Epic desert orchestral at 124 BPM, sweeping strings, bold brass, frame drums and finger cymbals, Middle-Eastern scale, treasure-hunt excitement, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-3.mp3", "seconds": 20, "prompt": "Belly-dance groove at 120 BPM, tabla and darbuka rhythm, qanun runs, clarinet melody, playful and swirling, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-4.mp3", "seconds": 20, "prompt": "Mysterious night market at 100 BPM, plucked oud, low bass drum heartbeats, airy flute, shimmering sistrum, curious magic, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-5.mp3", "seconds": 20, "prompt": "Cinematic desert chase at 140 BPM, staccato strings, pounding toms, exotic brass motif, sand-swept urgency, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"},
+      {"file": "spin-6.mp3", "seconds": 20, "prompt": "Upbeat Arabic pop-electronic at 126 BPM, synth bass, darbuka loops, bright qanun hook, festive night celebration, seamless 20-second loop: starts instantly on the first downbeat at full energy, steady tempo throughout, no intro, no outro, no fade, no ending, instrumental only"}
+    ],
+    "win": [
+      {"file": "win-1.mp3", "seconds": 4, "prompt": "Short Egyptian brass fanfare in Phrygian dominant ending on a triumphant chord with a cymbal crash, pharaoh's victory, instrumental only"},
+      {"file": "win-2.mp3", "seconds": 4, "prompt": "Short oud and flute flourish rising into a golden chord with finger cymbals, treasure found, instrumental only"},
+      {"file": "win-3.mp3", "seconds": 4, "prompt": "Short epic choir and timpani sting into a bright resolving chord, Eye of Ra moment, instrumental only"},
+      {"file": "win-4.mp3", "seconds": 4, "prompt": "Short darbuka roll into a bold qanun glissando and final stab, festive win, instrumental only"},
+      {"file": "win-5.mp3", "seconds": 4, "prompt": "Short shimmering harp and sistrum sparkle resolving to a warm major chord, ancient blessing, instrumental only"}
+    ]
   }
 }

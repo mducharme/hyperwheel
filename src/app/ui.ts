@@ -2,7 +2,7 @@ import { debug } from '../debug';
 import type { QualityLevel, QualityPref } from '../engine/quality';
 import type { App } from './App';
 import { parseNames, persist, store } from './store';
-import { $, el } from './dom';
+import { $, el, wireDialog } from './dom';
 import { Session } from './session';
 import { WheelMenu } from './wheelMenu';
 import { EntriesView } from './entriesView';
@@ -353,15 +353,14 @@ export class UI {
 
   // ------------------------------------------------------------------ scenes
 
+  /** The scene selected last (it may still be loading). */
+  private current: ThemeEntry | null = null;
+
   private initScenes() {
-    const dock = $('scenes');
+    const gallery = $<HTMLDialogElement>('scene-gallery');
+    wireDialog(gallery);
     const list = $('scene-list');
     for (const t of THEMES) {
-      const b = el('button', { title: `${t.name} — ${t.tagline}` }, t.emoji);
-      b.dataset.id = t.id;
-      b.addEventListener('click', () => void this.selectTheme(t));
-      dock.append(b);
-
       const swatch = el('span', { className: 'swatch' }, ...t.palette.map((c) => {
         const i = el('i');
         i.style.background = c;
@@ -369,12 +368,31 @@ export class UI {
       }));
       const card = el('button', { className: 'scene-card' }, swatch, el('strong', {}, `${t.emoji} ${t.name}`), el('small', {}, t.tagline));
       card.dataset.id = t.id;
-      card.addEventListener('click', () => void this.selectTheme(t));
+      card.addEventListener('click', () => {
+        gallery.close();
+        void this.selectTheme(t);
+      });
       list.append(card);
     }
+    this.renderDock();
   }
 
-  /** The scene to load after a spin: a random different one. */
+  /** The dock: the current scene, and a button for the gallery of all scenes. */
+  private renderDock() {
+    const open = () => $<HTMLDialogElement>('scene-gallery').showModal();
+    const nodes: HTMLElement[] = [];
+    if (this.current) {
+      const b = el('button', { className: 'active', title: `${this.current.name} — all scenes` }, this.current.emoji);
+      b.addEventListener('click', open);
+      nodes.push(b);
+    }
+    const more = el('button', { className: 'more', title: 'All scenes' }, '⋯');
+    more.addEventListener('click', open);
+    nodes.push(more);
+    $('scenes').replaceChildren(...nodes);
+  }
+
+  /** The scene to load after a spin: any other scene, at random. */
   private pickNextTheme(): ThemeEntry {
     const others = THEMES.filter((t) => t.id !== this.app.theme?.id);
     return others.length ? others[Math.floor(Math.random() * others.length)] : THEMES[0];
@@ -394,7 +412,9 @@ export class UI {
       store.lastTheme = theme.id;
       persist();
     }
-    document.querySelectorAll<HTMLElement>('#scenes button, #scene-list button').forEach((b) => {
+    this.current = theme;
+    this.renderDock();
+    document.querySelectorAll<HTMLElement>('#scenes button, #scene-list .scene-card').forEach((b) => {
       b.classList.toggle('active', b.dataset.id === theme.id);
     });
     const root = document.documentElement.style;

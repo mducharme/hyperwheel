@@ -136,7 +136,7 @@ export const abyss: Theme = {
     hub: ['#2fffd6', '#2979ff'],
     pegs: '#ffd166',
     frame: '#0d2236',
-    rivets: true,
+    rivets: '#c9a25a',
     bubbles: true,
     pins: 'pearls',
     pointer: 'anchor',
