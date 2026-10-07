@@ -1,5 +1,7 @@
 import * as THREE from 'three/webgpu';
 import {
+  Fn,
+  vec4,
   abs,
   float,
   fract,
@@ -22,7 +24,7 @@ import {
 import type { Theme, ThemeScene } from '../types';
 import { makeFloor, makeLights, makeStand, rgb } from '../shared';
 import { makeAtlas, shapes } from '../../fx/atlas';
-import { starField } from '../../fx/nodes';
+import { lowRes, starField } from '../../fx/nodes';
 import { uSpeed, uWin } from '../../engine/globals';
 import { SCALES } from '../../audio/ChipSynth';
 import { meta, PALETTE } from './meta';
@@ -36,17 +38,21 @@ const gridLines = (p: any, cell: number) => {
 };
 
 function sky() {
-  const uvS = screenUV;
-  const aspect = screenSize.x.div(screenSize.y);
-  const p = vec2(uvS.x.mul(aspect), uvS.y);
-  const horizon = pow(smoothstep(0.1, 0.78, uvS.y), 2.2);
-  let col: any = mix(vec3(0.012, 0.004, 0.035), vec3(0.12, 0.02, 0.22), smoothstep(0.0, 0.55, uvS.y));
-  col = mix(col, vec3(0.9, 0.12, 0.55), horizon.mul(0.55));
-  const n1 = mx_fractal_noise_float(vec3(p.mul(2.2), time.mul(0.02)), 5, 2.0, 0.5);
-  const n2 = mx_fractal_noise_float(vec3(p.mul(4.0).add(7.3), time.mul(0.03)), 4, 2.0, 0.5);
-  col = col.add(vec3(0.35, 0.05, 0.55).mul(smoothstep(0.0, 0.7, n1.add(0.15))).mul(0.35));
-  col = col.add(vec3(0.0, 0.45, 0.6).mul(smoothstep(0.25, 0.8, n2)).mul(0.22).mul(float(1).sub(horizon)));
-  return col.add(vec3(starField().mul(float(1).sub(horizon))));
+  const horizon = (uvS: any) => pow(smoothstep(0.1, 0.78, uvS.y), 2.2);
+  // gradient + drifting nebula: soft, so it's rendered at quarter resolution
+  const nebula = Fn(() => {
+    const uvS = screenUV;
+    const p = vec2(uvS.x.mul(screenSize.x.div(screenSize.y)), uvS.y);
+    let col: any = mix(vec3(0.012, 0.004, 0.035), vec3(0.12, 0.02, 0.22), smoothstep(0.0, 0.55, uvS.y));
+    col = mix(col, vec3(0.9, 0.12, 0.55), horizon(uvS).mul(0.55));
+    const n1 = mx_fractal_noise_float(vec3(p.mul(2.2), time.mul(0.02)), 5, 2.0, 0.5);
+    const n2 = mx_fractal_noise_float(vec3(p.mul(4.0).add(7.3), time.mul(0.03)), 4, 2.0, 0.5);
+    col = col.add(vec3(0.35, 0.05, 0.55).mul(smoothstep(0.0, 0.7, n1.add(0.15))).mul(0.35));
+    col = col.add(vec3(0.0, 0.45, 0.6).mul(smoothstep(0.25, 0.8, n2)).mul(0.22).mul(float(1).sub(horizon(uvS))));
+    return vec4(col, 1);
+  });
+  // stars stay full resolution so they remain crisp
+  return lowRes(nebula()).rgb.add(vec3(starField().mul(float(1).sub(horizon(screenUV)))));
 }
 
 /** Striped retro sun sinking into the horizon. */

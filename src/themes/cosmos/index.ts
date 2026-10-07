@@ -1,5 +1,7 @@
 import * as THREE from 'three/webgpu';
 import {
+  Fn,
+  vec4,
   abs,
   atan,
   cos,
@@ -26,7 +28,7 @@ import {
 import type { Theme, ThemeScene } from '../types';
 import { makeLights, rgb } from '../shared';
 import { makeAtlas, shapes, type Sprite } from '../../fx/atlas';
-import { starField } from '../../fx/nodes';
+import { lowRes, starField } from '../../fx/nodes';
 import { Particles } from '../../fx/Particles';
 import { uSpeed, uWin } from '../../engine/globals';
 import { SCALES } from '../../audio/ChipSynth';
@@ -101,19 +103,25 @@ const atlas = () => makeAtlas([shapes.sparkle(), shapes.star(5, 0.45), ringedPla
 // ------------------------------------------------------------------ world
 
 function sky() {
-  const uvS = screenUV;
-  const aspect = screenSize.x.div(screenSize.y);
-  const p = vec2(uvS.x.mul(aspect), uvS.y);
   // a diagonal galactic band
-  const band = p.y.sub(p.x.mul(0.35)).sub(0.35);
-  const bandMask = pow(float(1).sub(smoothstep(0, 0.35, abs(band))), 2);
-  const dust = mx_fractal_noise_float(vec3(p.mul(3.2), time.mul(0.01)), 6, 2.0, 0.55);
-  let col: any = vec3(0.004, 0.003, 0.014);
-  col = col.add(mix(rgb('#3a1d6e'), rgb('#ff8a5c'), smoothstep(0.1, 0.6, dust)).mul(bandMask).mul(smoothstep(-0.2, 0.5, dust)).mul(0.5));
-  col = col.add(rgb('#1f6fa8').mul(smoothstep(0.35, 0.8, mx_fractal_noise_float(vec3(p.mul(1.6).add(9), 0), 4, 2, 0.5))).mul(0.12));
-  col = col.add(vec3(starField(0.993, 2, 1.4)).mul(bandMask.mul(1.5).add(0.6)));
-  col = col.add(vec3(starField(0.9985, 4, 2.2, 7)));
-  return col;
+  const bandMask = (uvS: any) => {
+    const p = vec2(uvS.x.mul(screenSize.x.div(screenSize.y)), uvS.y);
+    return pow(float(1).sub(smoothstep(0, 0.35, abs(p.y.sub(p.x.mul(0.35)).sub(0.35)))), 2);
+  };
+  // dust lanes and haze: soft, so they're rendered at quarter resolution
+  const nebula = Fn(() => {
+    const uvS = screenUV;
+    const p = vec2(uvS.x.mul(screenSize.x.div(screenSize.y)), uvS.y);
+    const dust = mx_fractal_noise_float(vec3(p.mul(3.2), time.mul(0.01)), 6, 2.0, 0.55);
+    let col: any = vec3(0.004, 0.003, 0.014);
+    col = col.add(mix(rgb('#3a1d6e'), rgb('#ff8a5c'), smoothstep(0.1, 0.6, dust)).mul(bandMask(uvS)).mul(smoothstep(-0.2, 0.5, dust)).mul(0.5));
+    col = col.add(rgb('#1f6fa8').mul(smoothstep(0.35, 0.8, mx_fractal_noise_float(vec3(p.mul(1.6).add(9), 0), 4, 2, 0.5))).mul(0.12));
+    return vec4(col, 1);
+  });
+  // stars stay full resolution so they remain crisp
+  let col: any = lowRes(nebula()).rgb;
+  col = col.add(vec3(starField(0.993, 2, 1.4)).mul(bandMask(screenUV).mul(1.5).add(0.6)));
+  return col.add(vec3(starField(0.9985, 4, 2.2, 7)));
 }
 
 /** Shared accretion-disk shader: differential rotation, temperature gradient, Doppler beaming. */
