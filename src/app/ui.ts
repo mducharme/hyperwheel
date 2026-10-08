@@ -25,6 +25,7 @@ export class UI {
   private opening: Promise<void> = Promise.resolve();
   /** Scene chosen at spin start for the auto-switch after this result. */
   private upcoming: ThemeEntry | null = null;
+  private stageTimer = 0;
 
   private wheelMenu = new WheelMenu(this.session, () => !this.app.spin.spinning && this.winnerEl.hidden === true);
 
@@ -128,6 +129,7 @@ export class UI {
     if (this.app.theme?.id !== theme.id) {
       this.markTheme(theme);
       await this.app.setTheme(await theme.load());
+      this.stageUpcoming();
       this.renderPreviews();
     }
   }
@@ -144,11 +146,10 @@ export class UI {
   onSpinStart() {
     $('hint').classList.add('gone');
     this.spinBtn.disabled = true;
-    // the next scene is decided now and built while the wheel turns
-    const next = (this.upcoming = this.pickNextTheme());
-    void next.load().then((theme) => {
-      if (this.upcoming === next) this.app.prepareTheme(theme);
-    });
+    // normally the next scene was built while the wheel sat idle; if this spin came too soon,
+    // build it now (the app holds it back until the wheel has slowed down)
+    window.clearTimeout(this.stageTimer);
+    this.prepareUpcoming((this.upcoming ??= this.pickNextTheme()));
   }
 
   onResult(name: string, index: number, celebration: string) {
@@ -214,8 +215,9 @@ export class UI {
     if (this.removeEl.checked && this.pending) this.removeEntry(this.pending);
     this.pending = null;
     // stay locked while the next scene loads so a stray Space can't spin mid-switch
-    await this.selectTheme(this.upcoming ?? this.pickNextTheme());
+    const next = this.upcoming ?? this.pickNextTheme();
     this.upcoming = null;
+    await this.selectTheme(next);
     this.app.locked = false;
     this.spinBtn.disabled = this.app.names.length === 0;
     if (spinAgain) {
@@ -427,6 +429,25 @@ export class UI {
     $('scenes').replaceChildren(...nodes);
   }
 
+  /**
+   * A scene just went live: pick the one that comes after the next spin and,
+   * once this one has settled, build it while the wheel is idle, so switching
+   * is instant and nothing heavy happens while it spins.
+   */
+  private stageUpcoming() {
+    const next = (this.upcoming = this.pickNextTheme());
+    window.clearTimeout(this.stageTimer);
+    this.stageTimer = window.setTimeout(() => this.prepareUpcoming(next), 2000);
+  }
+
+  private prepareUpcoming(next: ThemeEntry) {
+    void next.load().then((theme) =>
+      this.app.later(() => {
+        if (this.upcoming === next) this.app.prepareTheme(theme);
+      }),
+    );
+  }
+
   /** The scene to load after a spin: any other scene, at random. */
   private pickNextTheme(): ThemeEntry {
     const others = THEMES.filter((t) => t.id !== this.app.theme?.id);
@@ -439,6 +460,7 @@ export class UI {
     this.session.touch('settings');
     this.markTheme(theme);
     await this.app.setTheme(await theme.load());
+    this.stageUpcoming();
     this.renderPreviews();
   }
 

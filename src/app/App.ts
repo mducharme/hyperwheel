@@ -24,6 +24,11 @@ import type { Entry } from '../library/wheels';
 
 /** Frame rate while nothing is happening. */
 const IDLE_FPS = 30;
+/**
+ * Below this wheel speed (rad/s, about half a turn a second) a dropped frame is
+ * hard to see: background work queued during a spin waits for it (see `later`).
+ */
+const CALM_SPEED = 3.5;
 
 export const WHEEL_CENTER = new THREE.Vector3(0, 3.9, 0);
 const DEFAULT_CAMERA = { height: 0.9, look: 0.15, frame: 8.6 };
@@ -91,6 +96,9 @@ export class App {
   private elapsed = 0;
   private last = performance.now();
   private winAt = -1;
+  /** Heavy work held back during the fast part of a spin, run one task per frame once it's calm. */
+  private deferred: (() => void)[] = [];
+  private spunAt = 0;
   private fps = { acc: 0, frames: 0 };
   private firstFrame = false;
   /** Full frame rate until this time (elapsed seconds); idle scenes drop to IDLE_FPS. */
@@ -109,6 +117,7 @@ export class App {
     private events: AppEvents,
   ) {
     this.stage = new Stage(canvas);
+    this.music.background = (task) => this.later(task);
     this.cam = new CameraRig(this.stage.camera, WHEEL_CENTER);
     this.stunts = new Stunts(this.wheel.root, WHEEL_CENTER);
     // ticks only when the wheel really turns (not for the attract-mode nudge)
@@ -295,6 +304,15 @@ export class App {
   }
 
   /**
+   * Run heavy background work (building a scene, loading a character, decoding
+   * a song) when it won't show: right away when the wheel is calm, otherwise
+   * once it has slowed down. Tasks run one per frame so they don't stack up.
+   */
+  later(task: () => void) {
+    this.deferred.push(task);
+  }
+
+  /**
    * Start preparing a scene in the background (e.g. the next one while the
    * wheel spins) so switching to it later is instant.
    */
@@ -409,8 +427,13 @@ export class App {
       dlog('🎡 spin', `→ “${this.entries[i]?.name}” (#${i + 1} of ${this.entries.length}), ${this.duration}s`);
     }
     // the result is decided at launch, so the winner's character can load during the spin
+    // (once the wheel has slowed: loading it at full speed would stutter)
+    this.spunAt = this.elapsed;
     const winner = this.entries[segmentAtPointer(this.spin.target, this.entries.length)];
-    if (winner) this.showcase.preload(this.characterFor(winner));
+    if (winner) {
+      const id = this.characterFor(winner);
+      this.later(() => this.showcase.preload(id));
+    }
     this.sfx.whoosh();
     this.music.startSpin();
     this.winAt = -1;
@@ -460,6 +483,9 @@ export class App {
 
     const omega = this.drag?.dragging ? this.drag.velocity : this.spin.velocity;
     const speed = Math.abs(omega);
+    // background work waits until the wheel is calm, or halfway through the spin at the latest
+    const quiet = (!this.spin.spinning && !this.drag?.dragging) || speed < CALM_SPEED || (this.spin.spinning && this.elapsed - this.spunAt > this.duration / 2);
+    if (quiet && this.deferred.length) this.deferred.shift()!();
     const win = this.winAt >= 0 ? Math.max(0, 1 - (this.elapsed - this.winAt) / 3.2) : 0;
 
     // attract mode: a couple of seconds after the last interaction, while nothing else is happening

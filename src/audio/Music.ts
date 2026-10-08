@@ -108,6 +108,8 @@ export class Music {
   private gain: GainNode | null = null;
   private winding = false;
   private spinToken = 0;
+  /** Where to run the "decode the following song" work started with each spin (the app defers it until the wheel slows). */
+  background: (task: () => void) => void = (task) => task();
 
   constructor(
     private bus: AudioBus,
@@ -152,6 +154,9 @@ export class Music {
     if (hit) return hit;
     try {
       const buffer = await this.bus.ctx!.decodeAudioData(await src.load());
+      // analyse now, in the background, rather than when the track starts playing
+      this.level(buffer);
+      this.loopRange(buffer);
       this.cache.set(src.key, buffer);
       if (this.cache.size > CACHE_SIZE) this.cache.delete(this.cache.keys().next().value!);
       return buffer;
@@ -213,7 +218,10 @@ export class Music {
         const why = !prepared ? 'no tracks for this scene' : prepared.buffer === null ? `${prepared.label} failed to load` : `${prepared.label} still decoding`;
         dlog('🎵 music', `spin song: built-in synth (${why})`);
       }
-      this.prepare('spin'); // get the following one ready
+      // get the following one ready, but not while the wheel is at full speed
+      this.background(() => {
+        if (!this.next.spin) this.prepare('spin');
+      });
     };
     if (!prepared) return go(null);
     if (prepared.buffer !== undefined) return go(prepared.buffer);
@@ -223,6 +231,13 @@ export class Music {
 
   private loops = new WeakMap<AudioBuffer, { start: number; end: number }>();
   private levels = new WeakMap<AudioBuffer, number>();
+
+  /** The track's loop points (its audible part), measured once per decoded buffer. */
+  private loopRange(buffer: AudioBuffer) {
+    let range = this.loops.get(buffer);
+    if (!range) this.loops.set(buffer, (range = audibleRange(buffer)));
+    return range;
+  }
 
   /** The track's normalizing gain, measured once per decoded buffer. */
   private level(buffer: AudioBuffer) {
@@ -236,8 +251,7 @@ export class Music {
     const src = ctx.createBufferSource();
     src.buffer = buffer;
     src.loop = true;
-    let range = this.loops.get(buffer);
-    if (!range) this.loops.set(buffer, (range = audibleRange(buffer)));
+    const range = this.loopRange(buffer);
     src.loopStart = range.start;
     src.loopEnd = range.end;
     const g = ctx.createGain();
