@@ -1,5 +1,5 @@
 import { dlog } from '../debug';
-import type { AudioBus } from './AudioBus';
+import { WIN_GAIN, type AudioBus } from './AudioBus';
 import { ChipSynth, type ChipSong } from './ChipSynth';
 
 export interface TrackSpec {
@@ -33,6 +33,37 @@ interface Prepared {
 
 /** Decoded tracks kept in memory (20 s of stereo audio is ~7 MB decoded). */
 const CACHE_SIZE = 6;
+
+/** Tracks are pulled toward this loudness (the median of the spin songs). */
+const TARGET_DB = -14.4;
+/** Share of a track's own loudness difference that's kept: louder songs stay a bit louder, quieter ones a bit quieter… */
+const KEEP = 0.5;
+/** …but never more than this far from the target, so the whole set spans about 5 dB instead of up to ~17 dB. */
+const MAX_DEVIATION_DB = 2.5;
+
+/**
+ * Gain that narrows a track's loudness toward TARGET_DB without flattening it.
+ * Loudness here is the average power of 400 ms windows, skipping near-silent ones.
+ */
+function normalizingGain(buffer: AudioBuffer): number {
+  const win = Math.floor(buffer.sampleRate * 0.4);
+  const chans = Array.from({ length: buffer.numberOfChannels }, (_, c) => buffer.getChannelData(c));
+  let sum = 0;
+  let n = 0;
+  for (let s = 0; s + win <= buffer.length; s += win) {
+    let e = 0;
+    for (const ch of chans) for (let i = s; i < s + win; i++) e += ch[i] * ch[i];
+    e /= win * chans.length;
+    if (e > 1e-5) {
+      sum += e;
+      n++;
+    }
+  }
+  if (!n) return 1;
+  const db = 10 * Math.log10(sum / n);
+  const kept = Math.max(-MAX_DEVIATION_DB, Math.min(MAX_DEVIATION_DB, (db - TARGET_DB) * KEEP));
+  return 10 ** ((TARGET_DB + kept - db) / 20);
+}
 
 /**
  * Where the audible part of a track starts and ends. MP3 files carry encoder
@@ -191,6 +222,14 @@ export class Music {
   }
 
   private loops = new WeakMap<AudioBuffer, { start: number; end: number }>();
+  private levels = new WeakMap<AudioBuffer, number>();
+
+  /** The track's normalizing gain, measured once per decoded buffer. */
+  private level(buffer: AudioBuffer) {
+    let g = this.levels.get(buffer);
+    if (g === undefined) this.levels.set(buffer, (g = normalizingGain(buffer)));
+    return g;
+  }
 
   private play(buffer: AudioBuffer) {
     const ctx = this.bus.ctx!;
@@ -203,7 +242,7 @@ export class Music {
     src.loopEnd = range.end;
     const g = ctx.createGain();
     g.gain.setValueAtTime(0.0001, ctx.currentTime);
-    g.gain.exponentialRampToValueAtTime(1, ctx.currentTime + 0.25);
+    g.gain.exponentialRampToValueAtTime(this.level(buffer), ctx.currentTime + 0.25);
     src.connect(g).connect(this.bus.music);
     src.start(0, range.start);
     this.source = src;
@@ -229,7 +268,8 @@ export class Music {
     if (this.source && this.gain) {
       this.source.playbackRate.setValueAtTime(1, t);
       this.source.playbackRate.linearRampToValueAtTime(0.45, t + seconds);
-      this.gain.gain.setValueAtTime(1, t);
+      this.gain.gain.cancelScheduledValues(t);
+      this.gain.gain.setValueAtTime(Math.max(0.0001, this.gain.gain.value), t);
       this.gain.gain.linearRampToValueAtTime(0.0001, t + seconds);
       this.source.stop(t + seconds + 0.05);
       this.source = null;
@@ -270,7 +310,9 @@ export class Music {
     this.next.win = null;
     const src = ctx.createBufferSource();
     src.buffer = buffer;
-    src.connect(this.bus.music);
+    const level = ctx.createGain();
+    level.gain.value = WIN_GAIN * this.level(buffer);
+    src.connect(level).connect(this.bus.music);
     src.start();
     this.prepare('win');
     return true;

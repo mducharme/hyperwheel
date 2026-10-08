@@ -1,4 +1,7 @@
-import type { AudioBus } from './AudioBus';
+import { WIN_GAIN, type AudioBus } from './AudioBus';
+
+/** Overall loudness of the peg ticks, every style (they fire many times a second, so they sit well under the music). */
+const TICK_GAIN = 0.45;
 
 export type TickStyle = 'click' | 'pop' | 'bubble' | 'blip' | 'knock' | 'jingle' | 'marimba';
 
@@ -52,7 +55,7 @@ export class Sfx {
     const t = ctx.currentTime;
     if (t - this.lastTick < 0.03) return;
     this.lastTick = t;
-    const vol = Math.min(1, 0.35 + 3 / (1 + speed));
+    const vol = TICK_GAIN * Math.min(1, 0.35 + 3 / (1 + speed));
     const jitter = 1 + (Math.random() - 0.5) * 0.12;
 
     switch (this.tickStyle) {
@@ -146,12 +149,12 @@ export class Sfx {
     const notes = [523.25, 659.25, 783.99, 1046.5, 1318.5, 1568.0];
     notes.forEach((freq, i) => {
       const t = now + i * 0.075;
-      this.osc(ctx, 'triangle', freq, freq, t, 1.4, this.env(ctx, t, 0.2, 0.015, 1.4));
-      this.osc(ctx, 'sine', freq * 2, freq * 2, t, 1.4, this.env(ctx, t, 0.05, 0.015, 1.4));
+      this.osc(ctx, 'triangle', freq, freq, t, 1.4, this.env(ctx, t, 0.2 * WIN_GAIN, 0.015, 1.4));
+      this.osc(ctx, 'sine', freq * 2, freq * 2, t, 1.4, this.env(ctx, t, 0.05 * WIN_GAIN, 0.015, 1.4));
     });
     const t = now + notes.length * 0.075;
     for (const freq of [523.25, 659.25, 783.99, 1046.5]) {
-      this.osc(ctx, 'sawtooth', freq, freq, t, 2.2, this.env(ctx, t, 0.05, 0.05, 2.1));
+      this.osc(ctx, 'sawtooth', freq, freq, t, 2.2, this.env(ctx, t, 0.05 * WIN_GAIN, 0.05, 2.1));
     }
   }
 }

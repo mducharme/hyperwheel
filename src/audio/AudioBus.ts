@@ -9,6 +9,9 @@
  *    gesture (a tap's touchend, click, keydown — not pointerdown);
  *  - a resume after interruptions (calls, other apps), which leave it "interrupted".
  */
+/** Loudness of the win sound (recorded sting or synth fanfare) relative to the spin music: the stings are mastered hot. */
+export const WIN_GAIN = 0.9;
+
 export class AudioBus {
   ctx: AudioContext | null = null;
   sfx!: GainNode;
