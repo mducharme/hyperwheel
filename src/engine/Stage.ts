@@ -19,6 +19,7 @@ import { bloom } from 'three/addons/tsl/display/BloomNode.js';
 import { chromaticAberration } from 'three/addons/tsl/display/ChromaticAberrationNode.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import type { QualitySettings } from './quality';
+import { motion } from './motion';
 
 export interface PostStyle {
   bloom: [strength: number, radius: number, threshold: number];
@@ -135,16 +136,26 @@ export class Stage {
   triggerRipple(at: THREE.Vector3, strength = 1, duration = 1.2) {
     const p = at.clone().project(this.camera);
     this.uRippleCenter.value.set((p.x + 1) / 2, (1 - p.y) / 2);
-    this.uRippleStrength.value = strength;
+    this.uRippleStrength.value = motion.reduced ? strength * 0.3 : strength;
     this.ripple = { t: 0, dur: duration };
   }
 
   triggerFlash(color: THREE.ColorRepresentation, peak = 0.8, duration = 0.5) {
+    if (motion.reduced) {
+      // dim, slow, and at most one every half second: never a strobe
+      const now = performance.now();
+      if (now - this.lastFlash < 500) return;
+      this.lastFlash = now;
+      peak = Math.min(peak, 0.15);
+      duration = Math.max(duration, 0.8);
+    }
     this.uFlashColor.value.set(color);
     this.flash = { t: 0, dur: duration, peak };
   }
+  private lastFlash = 0;
 
   kickAberration(amount: number) {
+    if (motion.reduced) return;
     this.aberrationKick = Math.max(this.aberrationKick, amount);
   }
 

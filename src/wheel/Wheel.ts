@@ -35,6 +35,7 @@ import {
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { prefersDarkText, segmentColor } from './colors';
 import { iridescent } from '../fx/nodes';
+import { uCalm } from '../engine/globals';
 
 export const WHEEL_RADIUS = 3;
 const R = WHEEL_RADIUS;
@@ -827,7 +828,7 @@ export class Wheel {
     const mat = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
     const u = uv();
     // the pattern re-rolls ~14 times a second, like a real discharge
-    const frame = floor(time.mul(14));
+    const frame = floor(time.mul(mix(float(14), float(1.5), uCalm))); // slow re-rolls for reduced motion
     // around the tube, 0 is the outer edge and 0.25 the face toward the camera: keep the bolts there
     const path = mx_noise_float(vec3(u.x.mul(70), frame, 0)).mul(0.2).add(0.17);
     const bolt = smoothstep(0.03, 0.0, abs(u.y.sub(path)));

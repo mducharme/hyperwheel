@@ -6,7 +6,6 @@ import {
   fract,
   fwidth,
   length,
-  max,
   min,
   mix,
   mx_noise_float,
@@ -28,7 +27,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { Theme, ThemeScene } from '../types';
 import { makeFloor, makeLights, makeStand, rgb } from '../shared';
 import { iridescent } from '../../fx/nodes';
-import { uSpeed, uWin } from '../../engine/globals';
+import { uCalm, uSpeed, uWin } from '../../engine/globals';
 import { SCALES } from '../../audio/ChipSynth';
 import { meta, PALETTE } from './meta';
 import { rand, inst } from '../../fx/util';
@@ -139,7 +138,7 @@ function makeSpotlights(uJackpot: any) {
     pivot.position.set(-12 + i * 6, 15.5, -3 + (i % 2) * 2);
     const mat = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false });
     const along = uv().y; // 1 at the lamp, 0 at the far end
-    const flicker = step(0.5, fract(time.mul(10).add(i * 0.37))).mul(uJackpot).mul(0.8).add(1);
+    const flicker = step(0.5, fract(time.mul(10).add(i * 0.37))).mul(float(1).sub(uCalm)).mul(uJackpot).mul(0.8).add(1);
     mat.colorNode = rgb(c).mul(pow(along, 1.6).mul(0.3)).mul(flicker).mul(float(1).add(uWin.mul(0.8)));
     const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 2.8, 20, 32, 1, true).translate(0, -10, 0), mat);
     pivot.add(beam);

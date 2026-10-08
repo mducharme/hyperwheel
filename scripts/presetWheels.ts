@@ -24,6 +24,8 @@ export interface PresetInfo {
   file: string;
   title: string;
   names: number;
+  /** The names themselves, so the app can show the wheel before the file (with its models) has downloaded. */
+  entries: string[];
   theme?: string;
 }
 
@@ -69,6 +71,7 @@ function describe(file: string, bytes: Uint8Array): PresetInfo | null {
       file,
       title: String(w.title ?? file.replace(/\.locospin$/, '')).slice(0, 60),
       names: Array.isArray(w.entries) ? w.entries.length : 0,
+      entries: (Array.isArray(w.entries) ? w.entries : []).map((e: { name?: unknown }) => String(e?.name ?? '').slice(0, 120)).filter(Boolean).slice(0, 500),
       theme: typeof w.settings?.theme === 'string' ? w.settings.theme : undefined,
     };
   } catch (err) {

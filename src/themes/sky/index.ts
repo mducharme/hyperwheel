@@ -1,6 +1,5 @@
 import * as THREE from 'three/webgpu';
 import {
-  abs,
   atan,
   float,
   fog,

@@ -30,7 +30,7 @@ import type { Theme, ThemeScene } from '../types';
 import { makeFloor, makeLights, makeStand, rgb } from '../shared';
 import { lowRes } from '../../fx/nodes';
 import { Particles } from '../../fx/Particles';
-import { uSpeed, uWin } from '../../engine/globals';
+import { uCalm, uSpeed, uWin } from '../../engine/globals';
 import { SCALES } from '../../audio/ChipSynth';
 import { meta, PALETTE } from './meta';
 import { rand } from '../../fx/util';
@@ -38,6 +38,7 @@ import { atlas } from './sprites';
 import { idleMoments } from '../../fx/ambient';
 import { SIGNS } from './layout';
 import { celebrations } from './celebrations';
+import { motion, strike } from '../../engine/motion';
 
 type N = any;
 
@@ -129,7 +130,8 @@ function makeSigns(uSigns: N[], uOverload: N) {
     const glow = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
     const ink = texture(signTexture(text, vertical), uv()).a;
     // overload: the colours cycle and strobe
-    const strobe = step(0.5, fract(time.mul(9).add(i * 0.3)));
+    // (a slow colour cycle instead when the viewer asked for reduced motion)
+    const strobe = mix(step(0.5, fract(time.mul(9).add(i * 0.3))), sin(time.mul(1.5).add(i)).mul(0.5).add(0.5), uCalm);
     const tint = mix(rgb(color), mix(rgb('#ff2a6d'), rgb('#05d9e8'), strobe), uOverload);
     glow.colorNode = tint.mul(ink).mul(uSigns[i].mul(2.4).add(uOverload.mul(strobe).mul(2)));
     const back = new THREE.Mesh(new THREE.BoxGeometry(w + 0.25, h + 0.25, 0.25), box);
@@ -391,7 +393,8 @@ export const neotokyo: Theme<CityScene> = {
           if (glitches[i] >= 0) {
             glitches[i] += f.dt;
             const t = glitches[i];
-            v *= t < 1.2 ? (Math.random() < 0.5 ? 0.05 : 1) : t < 2 ? 0.05 : 1;
+            // a stuttering glitch, or (reduced motion) just a fade off and back on
+            v *= t < 1.2 ? (motion.reduced ? 1 - t / 1.2 : Math.random() < 0.5 ? 0.05 : 1) : t < 2 ? 0.05 : 1;
             if (t > 2.3) glitches[i] = -1;
           }
           uSigns[i].value = v;
@@ -400,7 +403,7 @@ export const neotokyo: Theme<CityScene> = {
         if (flashT >= 0) {
           flashT += f.dt;
           const t = flashT;
-          uLightning.value = (t < 0.1 ? 1 : t < 0.2 ? 0.2 : t < 0.3 ? 0.8 : Math.max(0, 0.8 - (t - 0.3) * 2.5)) * flashAmp;
+          uLightning.value = strike(t) * flashAmp;
           if (t > 1) {
             flashT = -1;
             uLightning.value = 0;

@@ -1,5 +1,4 @@
 /** candy: confetti and celebration sprite shapes, drawn once into a texture atlas. */
-import { sin } from 'three/tsl';
 import { makeAtlas, shapes, type Sprite } from '../../fx/atlas';
 
 // ------------------------------------------------------------------ sprites

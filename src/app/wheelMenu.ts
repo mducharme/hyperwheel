@@ -150,8 +150,10 @@ export class WheelMenu {
     // presets always open fresh (the original names, no results), even the one that's open now
     const open = this.rowButton(p.title, `📌 Preset · ${p.names} names${current ? ' · open — click to reset' : ''}`, copy?.thumb, current, async () => {
       await this.session.save();
-      this.session.open(await openPreset(p));
-      if (current) toast(`“${p.title}” reset`);
+      const label = `Loading “${p.title}”…`;
+      toast(label);
+      this.session.open(await openPreset(p, (done) => toast(`${label} ${Math.round(done * 100)}%`)));
+      toast(current ? `“${p.title}” reset` : `“${p.title}” is ready`);
     }, true);
     return el('li', { className: 'preset' }, open);
   }
@@ -164,6 +166,7 @@ export class WheelMenu {
       e.stopPropagation();
       if (current) return toast('That wheel is open — use Delete in the menu.');
       if (!confirm(`Delete “${w.title}”?`)) return;
+      await this.session.save(); // so models the open wheel just started using count as used
       await wheels.remove(w.id);
       li.remove();
     });

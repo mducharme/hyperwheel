@@ -4,8 +4,6 @@ import {
   mix,
   mx_noise_float,
   positionGeometry,
-  smoothstep,
-  time,
   vec3,
 } from 'three/tsl';
 import { rgb } from '../shared';

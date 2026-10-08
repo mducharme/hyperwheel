@@ -1,7 +1,7 @@
 // zip/deflate is only needed for export, import and share links: load it on demand
 const zip = () => import('fflate');
 import { db } from './db';
-import { getAsset, putAsset, MAX_MODEL_SIZE } from './assets';
+import { deleteAsset, getAsset, listAssets, putAsset, MAX_MODEL_SIZE } from './assets';
 import { LIMITS, MODEL_MIME } from './limits';
 import { array, cleanText, isObject, sanitizeWheel } from './validate';
 
@@ -75,8 +75,10 @@ export const wheels = {
     w.updatedAt = Date.now();
     await db.put('wheels', w);
   },
+  /** Delete a wheel, and any imported models no other wheel uses. */
   async remove(id: string) {
     await db.delete('wheels', id);
+    await pruneImportedModels();
   },
   duplicate(w: WheelDoc, title = `${w.title} (copy)`): WheelDoc {
     const copy: WheelDoc = structuredClone(w);
@@ -89,6 +91,15 @@ export const wheels = {
     return copy;
   },
 };
+
+/**
+ * Remove models that arrived with an imported wheel or preset once no saved wheel
+ * uses them any more. Models the user uploaded themselves are never touched.
+ */
+export async function pruneImportedModels() {
+  const used = new Set((await wheels.list()).flatMap(wheelModels));
+  for (const a of await listAssets()) if (a.imported && !used.has(a.id)) await deleteAsset(a.id);
+}
 
 /** Ids of the uploaded models a wheel uses. */
 export function wheelModels(w: WheelDoc): string[] {
@@ -205,7 +216,7 @@ export async function importWheel(file: Blob): Promise<ImportReport> {
     const type = typeof a.type === 'string' && MODEL_MIME.includes(a.type) ? a.type : '';
     const name = cleanText(a.name, LIMITS.nameLength) || 'model.glb';
     try {
-      const stored = await putAsset(new Blob([bytes as BlobPart], { type }), name);
+      const stored = await putAsset(new Blob([bytes as BlobPart], { type }), name, { imported: true });
       if (typeof a.id === 'string') remap.set(a.id, stored.id);
     } catch {
       skipped++;

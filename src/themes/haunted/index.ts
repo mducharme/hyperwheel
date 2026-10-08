@@ -4,7 +4,6 @@ import {
   float,
   fog,
   length,
-  max,
   mix,
   mx_fractal_noise_float,
   mx_noise_float,
@@ -35,6 +34,7 @@ import { rand } from '../../fx/util';
 import { atlas } from './sprites';
 import { flyby, idleMoments } from '../../fx/ambient';
 import { celebrations } from './celebrations';
+import { strike } from '../../engine/motion';
 
 const NIGHT = '#241a36';
 
@@ -381,7 +381,7 @@ export const haunted: Theme<HauntedScene> = {
         if (flashT >= 0) {
           flashT += f.dt;
           const t = flashT;
-          flash = t < 0.12 ? 1 : t < 0.22 ? 0.15 : t < 0.32 ? 0.85 : Math.max(0, 0.85 - (t - 0.32) * 2.5);
+          flash = strike(t);
           if (t > 1) flashT = -1;
         } else flash = 0;
         uLightning.value = flash * 0.6 * flashAmp;

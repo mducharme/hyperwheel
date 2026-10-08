@@ -1,6 +1,13 @@
 /**
  * One AudioContext for the whole app, with separate gain buses so music and
  * sound effects can be toggled independently.
+ *
+ * iOS needs three things before anything is heard:
+ *  - the audio session declared as "playback", or the ring/silent switch mutes
+ *    Web Audio entirely (Safari 16.4+);
+ *  - the context created and resumed inside an event iOS accepts as a user
+ *    gesture (a tap's touchend, click, keydown — not pointerdown);
+ *  - a resume after interruptions (calls, other apps), which leave it "interrupted".
  */
 export class AudioBus {
   ctx: AudioContext | null = null;
@@ -8,6 +15,22 @@ export class AudioBus {
   music!: GainNode;
   noise!: AudioBuffer;
   private listeners: (() => void)[] = [];
+
+  constructor() {
+    // play like media, not like a ringtone-style "ambient" sound the silent switch mutes
+    const session = (navigator as Navigator & { audioSession?: { type: string } }).audioSession;
+    if (session) session.type = 'playback';
+    // the first qualifying gesture anywhere on the page unlocks audio (so the first spin's song is
+    // already decoding), and later ones wake it after an interruption
+    const wake = () => this.unlock();
+    for (const type of ['touchend', 'click', 'keydown'] as const) window.addEventListener(type, wake, { capture: true, passive: true });
+    document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && this.resume());
+  }
+
+  private resume() {
+    // "interrupted" is Safari's state after a call or another app took the audio
+    if (this.ctx && (this.ctx.state as string) !== 'running') void this.ctx.resume().catch(() => undefined);
+  }
 
   get ready() {
     return this.ctx !== null;
@@ -38,7 +61,7 @@ export class AudioBus {
       this.listeners.forEach((fn) => fn());
       this.listeners = [];
     }
-    if (this.ctx.state === 'suspended') void this.ctx.resume();
+    this.resume();
   }
 
   /** Run `fn` once the context exists (immediately if it already does). */

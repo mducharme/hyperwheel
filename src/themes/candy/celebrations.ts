@@ -1,6 +1,5 @@
 /** candy: winner celebrations. Each `setup` runs once when the scene loads (so shaders compile up front) and returns the function that plays it. */
 import * as THREE from 'three/webgpu';
-import { length, smoothstep, time } from 'three/tsl';
 import type { FxDirector, FxItem } from '../../fx/FxDirector';
 import { PALETTE } from './meta';
 import type { Celebration } from '../types';

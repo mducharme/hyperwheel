@@ -2,14 +2,10 @@
 import * as THREE from 'three/webgpu';
 import {
   abs,
-  length,
   max,
   mix,
   positionGeometry,
-  sin,
-  smoothstep,
   step,
-  time,
 } from 'three/tsl';
 import { rgb } from '../shared';
 import type { FxDirector, FxItem } from '../../fx/FxDirector';

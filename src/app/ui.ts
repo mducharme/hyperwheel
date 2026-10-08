@@ -6,7 +6,8 @@ import { $, el, toast, wireDialog } from './dom';
 import { Session } from './session';
 import { WheelMenu } from './wheelMenu';
 import { EntriesView } from './entriesView';
-import { reconcile } from '../library/wheels';
+import { reconcile, wheels } from '../library/wheels';
+import { openPreset, type Preset } from '../library/presets';
 import { THEMES, getTheme, type ThemeEntry } from '../themes';
 import { DEFAULT_PACKS, PACKS, setEnabledPacks } from '../characters/catalog';
 
@@ -85,7 +86,35 @@ export class UI {
     });
     const loaded = await this.session.load();
     await this.opening;
+    if (loaded.preset) void this.finishPreset(loaded.preset);
     return loaded;
+  }
+
+  /**
+   * A preset link opened with just its names: download the real wheel (with its
+   * characters), then swap it in once the wheel is idle — keeping any names
+   * edited or results won in the meantime.
+   */
+  private async finishPreset(p: Preset) {
+    const label = `Loading “${p.title}” characters…`;
+    toast(label);
+    let real;
+    try {
+      real = await openPreset(p, (done) => toast(`${label} ${Math.round(done * 100)}%`));
+    } catch (err) {
+      console.error(err);
+      toast(`Couldn't load the characters for “${p.title}” — the names still work.`, 'error');
+      return;
+    }
+    while (this.app.spin.spinning || !this.winnerEl.hidden) await new Promise((r) => setTimeout(r, 400));
+    const standIn = this.session.doc;
+    if (!this.session.waiting) return; // they opened another wheel meanwhile; the copy is saved for next time
+    real.entries = reconcile(real.entries, standIn.entries.map((e) => e.name));
+    real.results = standIn.results;
+    real.settings = { ...real.settings, ...standIn.settings };
+    await wheels.save(real);
+    this.session.open(real);
+    toast(`“${p.title}” is ready`);
   }
 
   /** A wheel was opened: refresh every control from its document. */
@@ -414,10 +443,6 @@ export class UI {
   }
 
   private markTheme(theme: ThemeEntry) {
-    if (store.lastTheme !== theme.id) {
-      store.lastTheme = theme.id;
-      persist();
-    }
     this.current = theme;
     this.renderDock();
     document.querySelectorAll<HTMLElement>('#scenes button, #scene-list .scene-card').forEach((b) => {

@@ -8,6 +8,11 @@ export interface Asset {
   size: number;
   blob: Blob;
   createdAt: number;
+  /**
+   * Arrived inside an imported wheel file or preset rather than being uploaded
+   * by hand: it's removed again once no wheel uses it (see pruneImportedModels).
+   */
+  imported?: boolean;
 }
 
 /** Largest uploaded model accepted. */
@@ -18,15 +23,22 @@ async function hash(buf: ArrayBuffer) {
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-/** Store an uploaded model (deduplicated by content) and return it. */
-export async function putAsset(file: Blob, name: string): Promise<Asset> {
+/** Store a model (deduplicated by content) and return it. `imported`: it came inside a wheel file, not from the user's own upload. */
+export async function putAsset(file: Blob, name: string, { imported = false } = {}): Promise<Asset> {
   if (file.size > MAX_MODEL_SIZE) {
     throw new Error(`${name} is ${(file.size / 1e6).toFixed(1)} MB — the limit is ${MAX_MODEL_SIZE / 1e6} MB.`);
   }
   const id = await hash(await file.arrayBuffer());
   const existing = await db.get<Asset>('assets', id);
-  if (existing) return existing;
-  const asset: Asset = { id, name, type: file.type, size: file.size, blob: file, createdAt: Date.now() };
+  if (existing) {
+    // uploading it by hand makes it the user's own: never cleaned up automatically
+    if (existing.imported && !imported) {
+      delete existing.imported;
+      await db.put('assets', existing);
+    }
+    return existing;
+  }
+  const asset: Asset = { id, name, type: file.type, size: file.size, blob: file, createdAt: Date.now(), ...(imported && { imported: true }) };
   await db.put('assets', asset);
   return asset;
 }

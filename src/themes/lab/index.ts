@@ -11,14 +11,11 @@ import {
   positionWorld,
   rangeFogFactor,
   sin,
-  smoothstep,
   step,
   time,
   uniform,
-  vec2,
   vec3,
 } from 'three/tsl';
-import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { Theme, ThemeScene } from '../types';
 import { makeLights, makeStand, rgb } from '../shared';
 import { Particles } from '../../fx/Particles';
@@ -30,6 +27,7 @@ import { atlas } from './sprites';
 import { idleMoments } from '../../fx/ambient';
 import { COIL_TOPS, JAR, TANK } from './layout';
 import { celebrations } from './celebrations';
+import { motion } from '../../engine/motion';
 
 type N = any;
 
@@ -371,16 +369,17 @@ export const lab: Theme<LabScene> = {
       update(f) {
         // a flickering supply: the lights dip and surge while things are coming alive
         aliveLeft = Math.max(0, aliveLeft - f.dt);
-        const flicker = aliveLeft > 0 ? (Math.random() < 0.35 ? 1 : 0) : 0;
+        // (reduced motion: a slow dim-and-surge instead of a flicker)
+        const flicker = aliveLeft <= 0 ? 0 : motion.reduced ? 0.4 + Math.sin(f.time * 2) * 0.2 : Math.random() < 0.35 ? 1 : 0;
         uFlicker.value = flicker;
-        lights(f.speed, f.win + (aliveLeft > 0 ? Math.random() * 2 : 0));
+        lights(f.speed, f.win + (aliveLeft > 0 ? (motion.reduced ? 0.8 : Math.random() * 2) : 0));
         moments.update(f);
         bubbles.update(f.time);
 
         zapLeft = Math.max(0, zapLeft - f.dt);
         reroll -= f.dt;
         if (zapLeft > 0 && reroll <= 0) {
-          reroll = 0.06;
+          reroll = motion.reduced ? 0.5 : 0.06;
           arcs[0].strike(COIL_TOPS[0], COIL_TOPS[1]);
           if (zapToWheel) {
             arcs[1].strike(COIL_TOPS[0], rim(Math.PI * 0.75 + rand(-0.3, 0.3)));

@@ -6,7 +6,6 @@ import {
   rotate,
   sin,
   smoothstep,
-  time,
   uniform,
   vec3,
 } from 'three/tsl';

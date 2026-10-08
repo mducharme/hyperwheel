@@ -3,11 +3,12 @@ import { App } from './app/App';
 import { UI } from './app/ui';
 import { toast } from './app/dom';
 import { listAssets } from './library/assets';
+import { storageAvailable } from './library/db';
 import { getTheme, prefetchThemes } from './themes';
 import { persist, store } from './app/store';
 import { loadSceneFont } from './themes/fonts';
 import { debug } from './debug';
-import { routeTheme } from './app/route';
+import { startTheme } from './app/route';
 
 const debugParam = new URLSearchParams(location.search).get('debug');
 if (debugParam !== null) {
@@ -35,7 +36,7 @@ async function warmDanceLibrary() {
 
 // Start downloading the scene we'll most likely show while the GPU initialises.
 // start on the first scene's code and wheel font right away, in parallel with everything else
-const firstTheme = getTheme(routeTheme() ?? store.lastTheme ?? 'synthwave');
+const firstTheme = getTheme(startTheme);
 void firstTheme.load();
 void loadSceneFont(firstTheme.font);
 
@@ -54,20 +55,33 @@ const app = new App(canvas, {
 });
 ui = new UI(app);
 
+/** Start-up failed: say so in the loading overlay instead of spinning forever. */
+function bootFailed(message: string, err: unknown) {
+  console.error(err);
+  const el = document.getElementById('boot');
+  if (!el) return;
+  el.classList.add('failed');
+  el.setAttribute('role', 'alert');
+  el.removeAttribute('aria-hidden');
+  el.querySelector('p')!.textContent = message;
+}
+
 async function boot() {
   performance.mark('ls:boot');
   try {
     await app.init();
     performance.mark('ls:renderer');
   } catch (err) {
-    console.error(err);
-    const el = document.getElementById('backend')!;
-    el.textContent = 'No WebGPU / WebGL2 :(';
-    el.classList.add('warn');
-    return;
+    return bootFailed('This browser can’t draw 3D graphics (it needs WebGPU or WebGL2). Try an up-to-date Chrome, Safari, Edge or Firefox.', err);
   }
   ui.setBackend(app.stage.isWebGPU);
-  const { fromLink, linkError } = await ui.init();
+  let started: Awaited<ReturnType<UI['init']>>;
+  try {
+    started = await ui.init();
+  } catch (err) {
+    return bootFailed('Something went wrong while starting LocoSpin. Reloading the page usually fixes it.', err);
+  }
+  const { fromLink, linkError } = started;
   performance.mark('ls:scene');
   app.start();
   // after the first frame: fetch the other scenes and the character loaders while idle
@@ -77,7 +91,12 @@ async function boot() {
     void import('./characters/loader');
     void warmDanceLibrary();
   });
-  if (fromLink) toast('Opened a shared wheel — it\'s saved in your wheels.');
+  const saving = await storageAvailable();
+  // ask the browser not to clear uploaded characters and wheels when space runs low
+  // (or, in Safari, after a week without a visit); it may say no, which changes nothing
+  if (saving) void navigator.storage?.persist?.().catch(() => false);
+  if (!saving) toast('This browser isn’t letting LocoSpin save anything — your wheel will be lost when you leave the page.', 'error');
+  else if (fromLink) toast('Opened a shared wheel — it\'s saved in your wheels.');
   else if (linkError) toast(linkError);
 }
 

@@ -14,14 +14,13 @@ export interface Prefs {
   /** Enabled built-in character packs (null = the defaults). */
   packs: string[] | null;
   /** Last scene shown — a hint to start downloading it before the wheel document is read. */
-  lastTheme: string | null;
   /** Graphics quality (resolution + bloom); Auto adapts to the device. */
   graphics: QualityPref;
   /** Debug mode: renderer/FPS badges and console logs (see src/debug.ts). */
   debug: boolean;
 }
 
-const defaults: Prefs = { sound: true, music: true, currentWheel: null, packs: null, lastTheme: null, graphics: 'auto', debug: false };
+const defaults: Prefs = { sound: true, music: true, currentWheel: null, packs: null, graphics: 'auto', debug: false };
 
 const raw: Partial<Prefs> | null = (() => {
   try {
@@ -37,8 +36,8 @@ if (!['auto', 'high', 'medium', 'low'].includes(store.graphics)) store.graphics 
 
 export function persist() {
   try {
-    const { sound, music, currentWheel, packs, lastTheme, graphics, debug } = store;
-    localStorage.setItem(STORE_KEY, JSON.stringify({ sound, music, currentWheel, packs, lastTheme, graphics, debug }));
+    const { sound, music, currentWheel, packs, graphics, debug } = store;
+    localStorage.setItem(STORE_KEY, JSON.stringify({ sound, music, currentWheel, packs, graphics, debug }));
   } catch {
     /* private mode etc. */
   }

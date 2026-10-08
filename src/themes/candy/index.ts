@@ -11,7 +11,6 @@ import {
   positionLocal,
   screenSize,
   screenUV,
-  sin,
   smoothstep,
   step,
   time,

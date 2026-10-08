@@ -1,5 +1,4 @@
 /** cosmos: winner celebrations. Each `setup` runs once when the scene loads (so shaders compile up front) and returns the function that plays it. */
-import { cos, length, sin } from 'three/tsl';
 import { PALETTE } from './meta';
 import type { Celebration } from '../types';
 import { atlas } from './sprites';

@@ -11,7 +11,6 @@ import {
   sin,
   smoothstep,
   step,
-  time,
   uniform,
   vec2,
   vec3,

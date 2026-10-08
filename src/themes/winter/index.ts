@@ -7,7 +7,6 @@ import {
   fog,
   hash,
   length,
-  max,
   mix,
   mx_fractal_noise_float,
   mx_noise_float,

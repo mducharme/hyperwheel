@@ -1,4 +1,5 @@
 import * as THREE from 'three/webgpu';
+import { motion } from './motion';
 
 export interface Insets {
   /** Desktop side panel width (px). */
@@ -51,15 +52,17 @@ export class CameraRig {
   ) {}
 
   shake(amount = 1, dur = 0.6) {
+    if (motion.reduced) return;
     this.moves.push({ kind: 'shake', t: 0, dur, amount });
   }
   /** Swing around the wheel by `amount` radians and back. */
   orbit(amount = 0.6, dur = 2.4) {
+    if (motion.reduced) return;
     this.moves.push({ kind: 'orbit', t: 0, dur, amount });
   }
   /** Push in (positive) or pull out (negative), then return. */
   zoom(amount = 0.2, dur = 1.6) {
-    this.moves.push({ kind: 'zoom', t: 0, dur, amount });
+    this.moves.push({ kind: 'zoom', t: 0, dur, amount: motion.reduced ? amount * 0.4 : amount });
   }
 
   update(dt: number, t: number, speed: number, win: number, insets: Insets) {
@@ -106,8 +109,9 @@ export class CameraRig {
     const shiftY = (this.off.y / 2) * unitsPerPx;
 
     this.parallax.lerp(this.pointer, 1 - Math.exp(-dt * 3));
-    const swayX = Math.sin(t * 0.21) * 0.35 + this.parallax.x * 2.3;
-    const swayY = Math.sin(t * 0.17) * 0.18 + this.parallax.y * 1.15;
+    const calm = motion.reduced ? 0.25 : 1;
+    const swayX = (Math.sin(t * 0.21) * 0.35 + this.parallax.x * 2.3) * calm;
+    const swayY = (Math.sin(t * 0.17) * 0.18 + this.parallax.y * 1.15) * calm;
 
     const C = this.center;
     this.target.set(C.x + shiftX, C.y - this.style.look - shiftY, 0);

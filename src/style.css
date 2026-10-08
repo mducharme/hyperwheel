@@ -758,6 +758,9 @@ input[type='range'] { accent-color: var(--accent); width: 100%; }
 .boot p { margin: 0; }
 @keyframes boot-spin { to { transform: rotate(1turn); } }
 body.ready .boot { opacity: 0; }
+/* start-up failed: stop the ring and show the message */
+.boot.failed .boot-ring { animation: none; filter: grayscale(1); opacity: 0.35; }
+.boot.failed p { color: var(--text, #f4efff); font-size: 15px; max-width: 320px; text-align: center; line-height: 1.45; }
 @media (max-width: 760px) {
   .boot { top: 32%; }
 }

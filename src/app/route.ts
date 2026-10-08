@@ -26,4 +26,7 @@ export function showRoute(preset: string | undefined) {
   if (location.pathname + location.hash !== path) history.replaceState(null, '', path + location.search);
 }
 
+/** The scene to start in: the one named in the hash, otherwise a random one. Picked once per page load. */
+export const startTheme: string = routeTheme() ?? THEMES[Math.floor(Math.random() * THEMES.length)].id;
+
 export const presetSlug = (file: string) => file.replace(/\.locospin$/, '');
